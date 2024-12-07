@@ -38,5 +38,9 @@ int32_t main(int32_t argc, char **argv)
         std::cerr << "\u001b[31;1mERROR: " << e.what() << "\u001b[0m\n";
         return EXIT_FAILURE;
     }
+
+    generator::Generator gen(params);
+    gen.Generate();
+
     return EXIT_SUCCESS;
 }

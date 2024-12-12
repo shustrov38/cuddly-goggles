@@ -18,10 +18,19 @@ struct Segment {
         return p.y + (q.y - p.y) * (x - p.x) / (q.x - p.x);
     }
 
+    friend bool operator ^(Segment const& a, Segment const& b)
+    {
+        return 
+            (a.p.GetId() == b.p.GetId()) ||
+            (a.p.GetId() == b.q.GetId()) ||
+            (a.q.GetId() == b.p.GetId()) ||
+            (a.q.GetId() == b.q.GetId()); 
+    }
+
     friend bool operator <(Segment const& a, Segment const& b)
     {
         double x = std::max(std::min(a.p.x, a.q.x), std::min(b.p.x, b.q.x));
-        return a.GetY(x) < b.GetY(x) - EPS;
+        return a.GetY(x) < b.GetY(x);
     }
 };
 } // namespace geometry 

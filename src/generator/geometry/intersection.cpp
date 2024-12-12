@@ -1,5 +1,8 @@
 #include "intersection.h"
 
+
+#include <iostream>
+
 namespace geometry {
 namespace detail {
 inline bool Intersect1D(double l1, double r1, double l2, double r2) {
@@ -35,12 +38,20 @@ struct Event {
     }
 
 	bool operator <(Event const& e) const {
-		if (abs (x - e.x) > EPS) {
+		if (std::abs(x - e.x) > EPS) {
             return x < e.x;
         }
 		return type > e.type;
 	}
 };
+
+inline std::set<Segment>::iterator prev(std::set<Segment> &s, std::set<Segment>::iterator it) {
+	return it == s.begin() ? s.end() : --it;
+}
+ 
+inline std::set<Segment>::iterator next(std::set<Segment> &s, std::set<Segment>::iterator it) {
+	return ++it;
+}
 } // namespace detail
 
 bool Intersect(Segment const& a, Segment const& b)
@@ -61,7 +72,7 @@ bool HasInersection(std::vector<Segment> const& segments)
 
     static std::vector<detail::Event> events;
     events.resize(0);
-    for (int32_t i = 0; i < static_cast<int32_t>(events.size()); ++i) {
+    for (int32_t i = 0; i < static_cast<int32_t>(segments.size()); ++i) {
         events.emplace_back(std::min(segments[i].p.x, segments[i].q.x), i, +1);
         events.emplace_back(std::max(segments[i].p.x, segments[i].q.x), i, -1);
     }
@@ -71,17 +82,25 @@ bool HasInersection(std::vector<Segment> const& segments)
         if (type == +1) {
             auto nxt = s.lower_bound(segments[id]);
             if (nxt != s.end() && Intersect(*nxt, segments[id])) {
+                if (*nxt ^ segments[id]) {
+                    continue;
+                }
+                std::cout << (*nxt ^ segments[id]) << std::endl;
                 return true;
             }
-            auto prv = std::prev(nxt);
+            auto prv = detail::prev(s, nxt);
             if (prv != s.end() && Intersect(*prv, segments[id])) {
+                if (*nxt ^ segments[id]) {
+                    continue;
+                }
                 return true;
             }
             where[id] = s.insert(nxt, segments[id]);
         } else {
-            auto nxt = std::next(where[id]);
-            auto prv = std::prev(where[id]);
-            if (nxt != s.end() && prv != s.end() && Intersect(*nxt, *prv)) {
+            std::cout << std::distance(s.begin(), where[id]) << ' ' << s.size() << std::endl;
+            auto nxt = detail::next(s, where[id]);
+            auto prv = detail::prev(s, where[id]);
+            if (nxt != s.end() && prv != s.end() && Intersect(*nxt, *prv) && !(*nxt ^ *prv)) {
                 return true;
             }
             s.erase(where[id]);

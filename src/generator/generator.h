@@ -1,6 +1,7 @@
 #pragma once
 
 #include <random.h>
+#include <unordered_set>
 
 #include "geometry/intersection.h"
 
@@ -10,7 +11,7 @@ struct Parameters {
 };
 
 class Generator {
-    using Graph = std::vector<std::vector<int32_t>>;
+    using Graph = std::vector<std::unordered_set<int32_t>>;
     
     using Coordinate = geometry::Point;
     using Coordinates = std::vector<Coordinate>;

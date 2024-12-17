@@ -19,17 +19,6 @@ struct Point {
         : x(x)
         , y(y)
     {}
-    Point(boost::polygon::voronoi_vertex<double> const& vertex)
-    {
-        *this = vertex; 
-    }
-
-    Point &operator =(boost::polygon::voronoi_vertex<double> const& vertex)
-    {
-        x = vertex.x();
-        y = vertex.y();
-        return *this;
-    }
 };
 
 BOOST_GEOMETRY_REGISTER_POINT_2D(Point, double, boost::geometry::cs::cartesian, x, y)

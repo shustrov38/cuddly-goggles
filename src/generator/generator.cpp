@@ -19,7 +19,7 @@ Generator::Generator(Parameters const& params)
 
 void Generator::Generate()
 {
-    double constexpr SCALE = 100;
+    double constexpr SCALE = 600;
     for (auto &p: mPoints) {
         bg::assign_values(p, rnd::mt19937::Uniform() * SCALE, rnd::mt19937::Uniform() * SCALE);
     }
@@ -33,26 +33,34 @@ void Generator::Generate()
     using Segment = bgm::segment<Point>;
     std::vector<Segment> segments;
 
-    int32_t color = 0;
-    for (auto &vert: vd.vertices()) {
-        vert.color(++color);
+    for (auto &cell: vd.cells()) {       
+        auto v = cell.source_index();
+        auto *edge = cell.incident_edge();
+        do {
+            if (edge->is_primary()) {
+                auto u = edge->twin()->cell()->source_index();
+                mGraph[v].emplace(u);
+            }
+            edge = edge->next();
+        } while (edge != cell.incident_edge());
     }
 
-    double constexpr prop = 0.7;
+    double constexpr prop = 0.5;
 
-    color = 0;
-    for (auto &edge: vd.edges()) {
-        if (edge.is_finite() && !edge.color()) {
-            edge.color(++color);
+    for (int32_t v = 0; v < static_cast<int32_t>(mGraph.size()); ++v) {
+        std::unordered_set<int32_t> toRemove;
+        for (auto u: mGraph[v]) {           
+            if (rnd::mt19937::Uniform() > prop) {
+                toRemove.emplace(u);
+                continue;
+            }
 
-            auto v = edge.vertex0()->color();
-            auto u = edge.vertex1()->color();
-
-            mGraph[v - 1].emplace(u - 1);
-            mGraph[u - 1].emplace(v - 1);
-
-            segments.emplace_back(*edge.vertex0(), *edge.vertex1());
+            segments.emplace_back(mPoints[v], mPoints[u]);
             map.add(segments.back());
+        }
+        for (auto u: toRemove) {
+            mGraph[v].erase(u);
+            mGraph[u].erase(v);
         }
     }
 

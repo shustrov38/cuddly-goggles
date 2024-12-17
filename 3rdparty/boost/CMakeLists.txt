@@ -1,7 +1,7 @@
 message(STATUS "Fetching Boost...")
 
 set(BOOST_COMPONENTS
-    program_options
+    program_options polygon geometry
 )
 
 set(BOOST_INCLUDE_LIBRARIES ${BOOST_COMPONENTS})

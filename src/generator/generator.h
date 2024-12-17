@@ -3,8 +3,6 @@
 #include <random.h>
 #include <unordered_set>
 
-#include "geometry/intersection.h"
-
 namespace generator {
 struct Parameters {
     size_t numVertices;
@@ -13,11 +11,8 @@ struct Parameters {
 class Generator {
     using Graph = std::vector<std::unordered_set<int32_t>>;
     
-    using Coordinate = geometry::Point;
+    using Coordinate = std::pair<double, double>;
     using Coordinates = std::vector<Coordinate>;
-
-    using Segment = geometry::Segment;
-    using Segments = std::vector<Segment>;
 
 public:
     explicit Generator(Parameters const& params);
@@ -28,6 +23,5 @@ private:
     Graph mGraph;
     
     Coordinates mCoords;
-    Segments mSegments;
 };
 } // namespace generator

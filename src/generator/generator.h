@@ -6,9 +6,11 @@
 #include <boost/geometry/io/svg/svg_mapper.hpp>
 
 #include <unordered_set>
+#include <filesystem>
 #include <fstream>
 
 #include <random.h>
+#include <graph.h>
 
 struct Point {
     double x;
@@ -46,13 +48,15 @@ struct Parameters {
 };
 
 class Generator {
-    using Graph = std::vector<std::unordered_set<int32_t>>;
     using Points = std::vector<Point>;
 
 public:
     explicit Generator(Parameters const& params);
 
     void Generate();
+
+    void ToSVG(std::ostream &svg) const;
+    void ToDIMACS(std::ostream &out) const;
 
 private:
     Graph mGraph;

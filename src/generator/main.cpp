@@ -41,6 +41,7 @@ int32_t main(int32_t argc, char **argv)
 
     generator::Generator gen(params);
     gen.Generate();
+    gen.ToDIMACS(std::cout);
 
     return EXIT_SUCCESS;
 }

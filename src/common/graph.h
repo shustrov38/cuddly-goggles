@@ -87,7 +87,31 @@ public:
         }
     }
 
+    std::vector<std::vector<int32_t>> SplitByComponents() const
+    {
+        std::vector<std::vector<int32_t>> components;
+        std::vector<bool> used(Vertices().size());
+        for (auto v: Vertices()) {
+            if (!used[v]) {
+                components.emplace_back();
+                DFS(*this, used, v, components.back());
+            }
+        }
+        return components;
+    }
+
 private:
+    static void DFS(Graph const& g, std::vector<bool> &used, int32_t v, std::vector<int32_t> &component)
+    {
+        used[v] = true;
+        component.emplace_back(v);
+        for (auto u: g.Neighbours(v)) {
+            if (!used[u]) {
+                DFS(g, used, u, component);
+            }
+        }
+    }
+
     int32_t mNumVerts;
     int32_t mNumEdges;
     std::vector<std::unordered_set<int32_t>> mNeighbours;

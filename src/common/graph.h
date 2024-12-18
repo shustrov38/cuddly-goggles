@@ -3,16 +3,24 @@
 #include <unordered_set>
 #include <stdlib.h>
 #include <cassert>
+#include <numeric>
 #include <vector>
 
 class Graph {
 public:
-    Graph(size_t n)
-        : mNumVerts(n)
-        , mNumEdges(0)
-        , mNeighbours(mNumVerts)
-        , mVertices(mNumVerts)
+    Graph() = default;
+
+    explicit Graph(size_t n)
     {
+        Init(n);
+    }
+
+    void Init(size_t n)
+    {
+        mNumVerts = n;
+        mNumEdges = 0;
+        mNeighbours.assign(mNumVerts, std::unordered_set<int32_t>());
+        mVertices.resize(mNumVerts);
         std::iota(mVertices.begin(), mVertices.end(), 0);
     }
 
@@ -53,10 +61,30 @@ public:
         out << "p edge " << mNumVerts << ' ' << mNumEdges * 2 << std::endl;
         for (auto v: Vertices()) {
             for (auto u: Neighbours(v)) {
-                out << v + 1 << ' ' << u + 1 << '\n';
+                out << "e " << v + 1 << ' ' << u + 1 << '\n';
             }
         }
         out.flush();
+    }
+
+    void FromDIMACS(std::istream &in) 
+    {
+        char ch;
+        std::string line;
+
+        // reading comments
+        while (std::getline(in, line) && line.starts_with('c'));
+        
+        int32_t n;
+        int32_t m;
+        std::stringstream ss(line);
+        ss >> ch >> line >> n >> m;
+        Init(n);
+
+        for (int32_t i = 0, v, u; i < m; ++i) {
+            in >> ch >> v >> u;
+            AddEdge(v - 1, u - 1);
+        }
     }
 
 private:

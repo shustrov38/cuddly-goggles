@@ -7,7 +7,11 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 
+#include <boost/range/iterator_range.hpp>
+
 #include <boost/polygon/voronoi.hpp>
+
+#include <boost/timer/timer.hpp>
 
 #include <unordered_set>
 #include <filesystem>
@@ -15,20 +19,21 @@
 #include <fstream>
 
 #include <random.h>
-// #include <graph.h>
 
 struct Point {
-    double x;
-    double y;
+    typedef int64_t Type;
+
+    Type x;
+    Type y;
 
     Point() = default;
-    Point(double x, double y)
+    Point(Type x, Type y)
         : x(x)
         , y(y)
     {}
 };
 
-BOOST_GEOMETRY_REGISTER_POINT_2D(Point, double, boost::geometry::cs::cartesian, x, y)
+BOOST_GEOMETRY_REGISTER_POINT_2D(Point, Point::Type, boost::geometry::cs::cartesian, x, y)
 
 namespace boost::polygon {
 template <>
@@ -38,7 +43,7 @@ struct geometry_concept<Point> {
 
 template <>
 struct point_traits<Point> {
-    typedef double coordinate_type;
+    typedef Point::Type coordinate_type;
 
     static inline coordinate_type get(const Point& point, orientation_2d orient)
     {
@@ -75,7 +80,7 @@ class Generator {
     using Points = std::vector<Point>;
 
     using Graph = boost::adjacency_list<
-        boost::vecS, boost::hash_setS, boost::bidirectionalS,
+        boost::vecS, boost::hash_setS, boost::undirectedS,
         // vertex property
         boost::property<boost::vertex_index_t, int32_t,
             boost::property<boost::vertex_coord_t, Point>
@@ -90,17 +95,19 @@ class Generator {
     using Vertex = GraphTraits::vertex_descriptor;
 
 public:
-    explicit Generator(Parameters const& params);
-
-    void Generate();
+    void Generate(Parameters const& params);
 
     void ToSVG(std::ostream &svg) const;
     void ToDIMACS(std::ostream &out) const;
 
 private:
+    void GenerateRandomPoints(Points &points);
+    void BuildGraphUsingVoronoiDiagram(Points const &points);
+    void FindMST();
+    void RemoveEdgesWithProp(double prop = 0.5, bool connectivity = true);
+
+
     Graph mGraph;
     std::vector<Vertex> mVertexes;
-    
-    Points mPoints;
 };
 } // namespace generator

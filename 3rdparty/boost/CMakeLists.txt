@@ -1,7 +1,7 @@
 message(STATUS "Fetching Boost...")
 
 set(BOOST_COMPONENTS
-    program_options polygon geometry graph
+    program_options polygon geometry graph timer
 )
 
 set(BOOST_INCLUDE_LIBRARIES ${BOOST_COMPONENTS})

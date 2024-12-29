@@ -1,51 +1,164 @@
 import sys
-from dataclasses import dataclass
+
+import networkx as nx
 
 import matplotlib.pyplot as plt
 
+G = nx.Graph()
 
-@dataclass
-class Point:
-    x: float
-    y: float
+G.add_nodes_from([
+    (25, {'color': 'black'}),
+    (8, {'color': 'pink'}),
+    (20, {'color': 'black'}),
+    (28, {'color': 'green'}),
+    (5, {'color': 'pink'}),
+    (17, {'color': 'black'}),
+    (23, {'color': 'green'}),
+    (6, {'color': 'pink'}),
+    (13, {'color': 'red'}),
+    (18, {'color': 'pink'}),
+    (26, {'color': 'black'}),
+    (9, {'color': 'blue'}),
+    (15, {'color': 'green'}),
+    (4, {'color': 'green'}),
+    (21, {'color': 'green'}),
+    (11, {'color': 'green'}),
+    (29, {'color': 'blue'}),
+    (10, {'color': 'red'}),
+    (24, {'color': 'pink'}),
+    (7, {'color': 'blue'}),
+    (14, {'color': 'green'}),
+    (2, {'color': 'red'}),
+    (19, {'color': 'red'}),
+    (27, {'color': 'red'}),
+    (3, {'color': 'red'}),
+    (16, {'color': 'red'}),
+    (22, {'color': 'black'}),
+    (30, {'color': 'black'}),
+    (1, {'color': 'black'}),
+    (12, {'color': 'pink'})
+])
 
+G.add_edges_from([
+    (27, 8),
+    (27, 1),
+    (27, 15),
+    (27, 11),
+    (1, 15),
+    (11, 2),
+    (11, 27),
+    (11, 7),
+    (15, 18),
+    (15, 16),
+    (15, 12),
+    (15, 27),
+    (15, 1),
+    (15, 8),
+    (15, 19),
+    (7, 5),
+    (7, 11),
+    (7, 27),
+    (7, 28),
+    (8, 19),
+    (8, 15),
+    (8, 1),
+    (8, 27),
+    (8, 11),
+    (28, 13),
+    (28, 5),
+    (28, 7),
+    (28, 27),
+    (19, 18),
+    (19, 15),
+    (19, 8),
+    (16, 20),
+    (16, 23),
+    (16, 12),
+    (16, 18),
+    (12, 23),
+    (12, 15),
+    (12, 16),
+    (23, 22),
+    (23, 12),
+    (23, 16),
+    (23, 20),
+    (23, 10),
+    (23, 30),
+    (18, 21),
+    (18, 16),
+    (18, 15),
+    (18, 19),
+    (18, 17),
+    (5, 28),
+    (5, 25),
+    (5, 11),
+    (17, 18),
+    (17, 8),
+    (17, 2),
+    (25, 2),
+    (25, 5),
+    (2, 21),
+    (2, 17),
+    (2, 8),
+    (2, 5),
+    (2, 25),
+    (2, 6),
+    (20, 16),
+    (20, 9),
+    (21, 24),
+    (21, 9),
+    (21, 2),
+    (9, 10),
+    (9, 20),
+    (9, 21),
+    (24, 3),
+    (24, 4),
+    (24, 9),
+    (24, 21),
+    (24, 2),
+    (24, 26),
+    (24, 14),
+    (6, 13),
+    (6, 29),
+    (6, 25),
+    (6, 28),
+    (10, 30),
+    (10, 23),
+    (10, 20),
+    (10, 9),
+    (10, 24),
+    (10, 4),
+    (26, 14),
+    (26, 24),
+    (26, 29),
+    (29, 14),
+    (29, 26),
+    (29, 6),
+    (4, 3),
+    (4, 30),
+    (4, 10),
+    (13, 14),
+    (13, 29),
+    (13, 6),
+    (13, 28),
+    (30, 3),
+    (30, 23),
+    (30, 4),
+    (22, 3),
+    (22, 23),
+    (3, 4),
+    (3, 24),
+    (3, 14),
+    (14, 13),
+    (14, 3),
+    (14, 26),
+    (14, 29),
+])
 
-@dataclass
-class Vertex:
-    i: int
-    p: Point
-
-
-arr_x = []
-arr_y = []
+color_map = [G.nodes[node]['color'] for node in G]
 
 fig, ax = plt.subplots()
 
-verts = []
-
-for line in sys.stdin:
-    if line.startswith('v'):
-        _, v, x, y = line.split()
-        pt = Point(float(x), float(y))
-        vert = Vertex(int(v), pt)
-        verts.append(vert)
-        arr_x.append(pt.x)
-        arr_y.append(pt.y)
-    elif line.startswith('e'):
-        _, v, u = line.split()
-        v = int(v)
-        u = int(u)
-
-        x1, y1 = [verts[v].p.x, verts[u].p.x], [verts[v].p.y, verts[u].p.y]
-        plt.plot(x1, y1)
-
-
-ax.scatter(arr_x, arr_y)
-
-marg = plt.margins()[1]
-ax.set_ylim(0 - marg, 1 + marg)
-ax.set_xlim(0 - marg, 1 + marg)
-ax.set_aspect('equal')
-ax.axis("off")
+nx.draw(G, pos=nx.planar_layout(G), ax=ax, node_color=color_map)
 
 plt.show()

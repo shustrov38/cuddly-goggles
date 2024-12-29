@@ -172,7 +172,7 @@ void Generator::FindMST()
 {
     std::vector<Edge> mst;
     boost::kruskal_minimum_spanning_tree(mGraph, std::back_inserter(mst));
-    auto  isMstEdge = boost::get(boost::edge_mst, mGraph);
+    auto isMstEdge = boost::get(boost::edge_mst, mGraph);
     for (auto &edge: mst) {
         isMstEdge[edge] = true;
     }

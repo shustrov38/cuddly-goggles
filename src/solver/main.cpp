@@ -6,11 +6,15 @@
 
 #include <iostream>
 
+#include "heuristics/DSatur.h"
+
 struct VertexProperty {
     int32_t index;
 
     boost::default_color_type used {boost::white_color};
     int32_t component { 0 };
+
+    int32_t color { 0 };
 
     explicit VertexProperty(int32_t i)
         : index(i)
@@ -72,10 +76,33 @@ int32_t main(int32_t argc, char **argv)
     );
 
     std::cout << "Components: " << ncomps << std::endl;
-    // for (auto v: vertices) {
-    //     int32_t index = boost::get(&VertexProperty::vertexIndex, g, v);
-    //     int32_t comp = boost::get(&VertexProperty::vertexComponent, g, v);
-    //     std::cout << index << ' ' << comp << '\n';
+
+    auto ncolors = heuristics::DSaturSequentialVertexColoring(
+        g,
+        boost::color_map(boost::get(&VertexProperty::color, g))
+            .vertex_index_map(boost::get(&VertexProperty::index, g))
+    );
+
+    std::cout << "Colors: " << ncolors << std::endl;
+
+    std::unordered_map<decltype(VertexProperty::color), int32_t> colorCount;
+
+    for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+        auto colorV = boost::get(&VertexProperty::color, g, v);
+        ++colorCount[colorV];
+
+        // std::cout << boost::get(&VertexProperty::index, g, v) << ' ' << static_cast<int32_t>(colorV) << '\n';
+        
+        for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
+            auto colorU = boost::get(&VertexProperty::color, g, u);
+            if (colorV == colorU) {
+                std::cout << "BAD\n";
+            }
+        }
+    }
+
+    // for (auto &[clr, cnt]: colorCount) {
+    //     std::cout << static_cast<int32_t>(clr) << ' ' << cnt << '\n';
     // }
 
     return EXIT_SUCCESS;

@@ -54,12 +54,10 @@ DSaturSequentialVertexColoring(VertexListGraph const& g, Order order, ColorMap c
 
     auto findMaxSaturation = [&uncoloredVertices, &saturation, &degrees, &vertices]() {
         SizeType maxSaturation = 0;
-        SizeType maxVertex = 0;
 
         for (auto i: uncoloredVertices) {
             if (saturation[i] > maxSaturation) {
                 maxSaturation = saturation[i];
-                maxVertex = i;
             }
         }
 
@@ -69,10 +67,8 @@ DSaturSequentialVertexColoring(VertexListGraph const& g, Order order, ColorMap c
                 tieBreaker.emplace(degrees[i], i);
             }
         }
-        
-        maxVertex = tieBreaker.rbegin()->second;
 
-        return vertices[maxVertex];
+        return vertices[tieBreaker.rbegin()->second];
     };
 
     while (!uncoloredVertices.empty()) {
@@ -84,7 +80,7 @@ DSaturSequentialVertexColoring(VertexListGraph const& g, Order order, ColorMap c
         }
 
         ColorType nextColor = 0;
-        while (nextColor < maxColor && mark[nextColor] == i) {
+        while (nextColor < maxColor && mark[nextColor] == static_cast<SizeType>(i)) {
             ++nextColor;
         }
 
@@ -157,7 +153,7 @@ DSaturSparseSequentialVertexColoring(VertexListGraph const& g, Order order, Colo
         }
 
         ColorType nextColor = 0;
-        while (nextColor < maxColor && mark[nextColor] == i) {
+        while (nextColor < maxColor && mark[nextColor] == static_cast<SizeType>(i)) {
             ++nextColor;
         }
 

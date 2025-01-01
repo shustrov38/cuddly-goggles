@@ -63,6 +63,41 @@ void FromDIMACS(std::istream &in, Graph &g, std::vector<Vertex> &vertices)
     std::cout << boost::num_vertices(g) << ' ' << boost::num_edges(g) << std::endl;
 }
 
+class Coloring {
+public:
+    enum Config: uint16_t {
+        DSATUR,                 // O(n^2)
+        DSATUR_BINARY_HEAP,     // O((m + n)logn)
+        DSATUR_FIBONACCI_HEAP,  // O(m + nlogn)
+
+        __END
+    };
+
+    template <class VertexListGraph, class P, class T, class R>
+    static auto Process(VertexListGraph const& g, boost::bgl_named_params<P, T, R> const& params, Config config)
+    {
+        switch (config) {
+        case DSATUR: return heuristics::DSaturSequentialVertexColoring(g, params);
+        case DSATUR_BINARY_HEAP: throw std::invalid_argument("DSATUR_BINARY_HEAP is not implemented");
+        case DSATUR_FIBONACCI_HEAP: return heuristics::DSaturSparseSequentialVertexColoring(g, params);
+        default: throw std::invalid_argument("unknown config parameter");;
+        }
+    }
+
+    template <class VertexListGraph, class ColorMap>
+    static bool Validate(VertexListGraph const& g, ColorMap color)
+    {
+        for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+            for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
+                if (color[v] == color[u]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+};
+
 int32_t main(int32_t argc, char **argv)
 {
     Graph g;
@@ -78,50 +113,24 @@ int32_t main(int32_t argc, char **argv)
     );
 
     std::cout << "Components: " << ncomps << std::endl;
+    
+    boost::timer::cpu_timer t;
+    auto ncolors = Coloring::Process(
+        g,
+        boost::color_map(boost::get(&VertexProperty::color, g))
+            .vertex_index_map(boost::get(&VertexProperty::index, g)),
+        static_cast<Coloring::Config>(std::stoi(argv[1]))
+    );
+    boost::timer::cpu_times times = t.elapsed();
+    std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;
 
-    {
-        boost::timer::cpu_timer t;
-        auto ncolors = heuristics::DSaturSequentialVertexColoring(
-            g,
-            boost::color_map(boost::get(&VertexProperty::color, g))
-                .vertex_index_map(boost::get(&VertexProperty::index, g))
-        );
-        boost::timer::cpu_times times = t.elapsed();
-        std::cout << "Linear search: " << boost::timer::format(times, 5, "%w") << 's' << std::endl;
+    auto status = Coloring::Validate(g, boost::get(&VertexProperty::color, g));
+    if (!status) {
+        std::cout << "Bad coloring" << std::endl;
+        return EXIT_FAILURE;
     }
 
-    {
-        boost::timer::cpu_timer t;
-        auto ncolors = heuristics::DSaturSparseSequentialVertexColoring(
-            g,
-            boost::color_map(boost::get(&VertexProperty::color, g))
-                .vertex_index_map(boost::get(&VertexProperty::index, g))
-        );
-        boost::timer::cpu_times times = t.elapsed();
-        std::cout << "Fibonacci heap: " << boost::timer::format(times, 5, "%w") << 's' << std::endl;
-    }
-
-    // std::cout << "Colors: " << ncolors << std::endl;
-
-    // std::unordered_map<decltype(VertexProperty::color), int32_t> colorCount;
-
-    // for (auto v: boost::make_iterator_range(boost::vertices(g))) {
-    //     auto colorV = boost::get(&VertexProperty::color, g, v);
-    //     ++colorCount[colorV];
-
-    //     // std::cout << boost::get(&VertexProperty::index, g, v) << ' ' << static_cast<int32_t>(colorV) << '\n';
-        
-    //     for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
-    //         auto colorU = boost::get(&VertexProperty::color, g, u);
-    //         if (colorV == colorU) {
-    //             std::cout << "BAD\n";
-    //         }
-    //     }
-    // }
-
-    // for (auto &[clr, cnt]: colorCount) {
-    //     std::cout << static_cast<int32_t>(clr) << ' ' << cnt << '\n';
-    // }
+    std::cout << "Found coloring N=" << ncolors << std::endl;
 
     return EXIT_SUCCESS;
 }

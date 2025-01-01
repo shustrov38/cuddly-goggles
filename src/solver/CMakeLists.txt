@@ -10,4 +10,9 @@ file(GLOB_RECURSE solver_src *.cpp *.h ../common/*.cpp)
 add_executable(solver ${solver_src})
 
 target_include_directories(solver PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../common/)
-target_link_libraries(solver PRIVATE Boost::program_options Boost::graph)
+target_link_libraries(solver PRIVATE 
+    Boost::program_options
+    Boost::graph
+    Boost::heap
+    Boost::timer
+)

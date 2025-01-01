@@ -4,6 +4,8 @@
 
 #include <boost/program_options.hpp>
 
+#include <boost/timer/timer.hpp>
+
 #include <iostream>
 
 #include "heuristics/DSatur.h"
@@ -77,29 +79,45 @@ int32_t main(int32_t argc, char **argv)
 
     std::cout << "Components: " << ncomps << std::endl;
 
-    auto ncolors = heuristics::DSaturSequentialVertexColoring(
-        g,
-        boost::color_map(boost::get(&VertexProperty::color, g))
-            .vertex_index_map(boost::get(&VertexProperty::index, g))
-    );
-
-    std::cout << "Colors: " << ncolors << std::endl;
-
-    std::unordered_map<decltype(VertexProperty::color), int32_t> colorCount;
-
-    for (auto v: boost::make_iterator_range(boost::vertices(g))) {
-        auto colorV = boost::get(&VertexProperty::color, g, v);
-        ++colorCount[colorV];
-
-        // std::cout << boost::get(&VertexProperty::index, g, v) << ' ' << static_cast<int32_t>(colorV) << '\n';
-        
-        for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
-            auto colorU = boost::get(&VertexProperty::color, g, u);
-            if (colorV == colorU) {
-                std::cout << "BAD\n";
-            }
-        }
+    {
+        boost::timer::cpu_timer t;
+        auto ncolors = heuristics::DSaturSequentialVertexColoring(
+            g,
+            boost::color_map(boost::get(&VertexProperty::color, g))
+                .vertex_index_map(boost::get(&VertexProperty::index, g))
+        );
+        boost::timer::cpu_times times = t.elapsed();
+        std::cout << "Linear search: " << boost::timer::format(times, 5, "%w") << 's' << std::endl;
     }
+
+    {
+        boost::timer::cpu_timer t;
+        auto ncolors = heuristics::DSaturSparseSequentialVertexColoring(
+            g,
+            boost::color_map(boost::get(&VertexProperty::color, g))
+                .vertex_index_map(boost::get(&VertexProperty::index, g))
+        );
+        boost::timer::cpu_times times = t.elapsed();
+        std::cout << "Fibonacci heap: " << boost::timer::format(times, 5, "%w") << 's' << std::endl;
+    }
+
+    // std::cout << "Colors: " << ncolors << std::endl;
+
+    // std::unordered_map<decltype(VertexProperty::color), int32_t> colorCount;
+
+    // for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+    //     auto colorV = boost::get(&VertexProperty::color, g, v);
+    //     ++colorCount[colorV];
+
+    //     // std::cout << boost::get(&VertexProperty::index, g, v) << ' ' << static_cast<int32_t>(colorV) << '\n';
+        
+    //     for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
+    //         auto colorU = boost::get(&VertexProperty::color, g, u);
+    //         if (colorV == colorU) {
+    //             std::cout << "BAD\n";
+    //         }
+    //     }
+    // }
 
     // for (auto &[clr, cnt]: colorCount) {
     //     std::cout << static_cast<int32_t>(clr) << ' ' << cnt << '\n';

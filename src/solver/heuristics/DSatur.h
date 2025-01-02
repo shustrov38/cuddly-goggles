@@ -107,44 +107,63 @@ DSaturSparseSequentialVertexColoring(VertexListGraph const& g, Order order, Colo
 
     std::vector<SizeType> mark(n, std::numeric_limits<ColorType>::max BOOST_PREVENT_MACRO_SUBSTITUTION ());
 
-    std::unordered_map<SizeType, Vertex> vertices;
+    struct VertexInfo {
+        SizeType i;
+        Vertex v;
 
-    std::vector<SizeType> degrees(n);
-    std::vector<SizeType> saturation(n);
-    std::vector<std::unordered_set<ColorType>> neighbourColors(n);
+        SizeType degree;
+        std::unordered_set<ColorType> saturation {};
 
-    using Node = std::tuple<SizeType, SizeType, SizeType>; // tuple [saturation, degree, index]
-    using Heap = boost::heap::fibonacci_heap<Node, boost::heap::compare<std::greater<Node>>>;
-    using Handle = Heap::handle_type; 
-    Heap uncoloredVertices;
-    std::vector<Handle> heapHandles(n);
+        bool colored { false };
+    };
+
+    struct CompareVertexInfo {
+        bool operator()(const VertexInfo *lhs, const VertexInfo *rhs) const {
+            if (lhs->saturation.size() != rhs->saturation.size()) {
+                return lhs->saturation.size() < rhs->saturation.size();
+            }
+            if (lhs->degree != rhs->degree) {
+                return lhs->degree < rhs->degree;
+            }
+            return lhs->i < rhs->i;
+        }
+    };
+
+    std::vector<VertexInfo> vertexInfo(n);
+
+    using Heap = boost::heap::fibonacci_heap<VertexInfo *, boost::heap::compare<CompareVertexInfo>>;
+    Heap uncolored;
+    std::vector<typename Heap::handle_type> handles(n);
 
     for (auto v: boost::make_iterator_range(boost::vertices(g))) {
-        auto i = order[v];
-
-        vertices[i] = v;
-
+        SizeType i = order[v];
+        vertexInfo[i] = {
+            .i = i,
+            .v = v,
+            .degree = boost::out_degree(v, g),
+            .saturation = {},
+            .colored = false
+        };
         boost::put(color, v, 0);
-
-        degrees[i] = boost::out_degree(v, g);
-        saturation[i] = 0;
-
-        heapHandles[i] = uncoloredVertices.emplace(saturation[i], degrees[i], i);
+        handles[i] = uncolored.emplace(&vertexInfo[i]);
     }
 
-    std::vector<bool> used(n);
-    while (!uncoloredVertices.empty()) {
-        auto cur = vertices[std::get<2>(uncoloredVertices.top())];
-        uncoloredVertices.pop();
+    auto findCandidate = [&uncolored]() {
+        auto i = uncolored.top()->i;
+        uncolored.pop();
+        return i;
+    };
 
-        auto i = order[cur];
-        used[i] = true;
-        for (auto v: boost::make_iterator_range(boost::adjacent_vertices(cur, g))) {
-            mark[boost::get(color, v)] = i;
+    while (!uncolored.empty()) {
+        auto i = findCandidate();
+        auto v = vertexInfo[i].v;
+
+        for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
+            mark[boost::get(color, u)] = i;
         }
 
         ColorType nextColor = 0;
-        while (nextColor < maxColor && mark[nextColor] == static_cast<SizeType>(i)) {
+        while (nextColor < maxColor && mark[nextColor] == i) {
             ++nextColor;
         }
 
@@ -152,19 +171,15 @@ DSaturSparseSequentialVertexColoring(VertexListGraph const& g, Order order, Colo
             ++maxColor;
         }
 
-        boost::put(color, cur, nextColor);
-        for (auto v: boost::make_iterator_range(boost::adjacent_vertices(cur, g))) {
-            auto j = order[v];
+        boost::put(color, v, nextColor);
+        vertexInfo[i].colored = true;
 
-            if (used[j]) {
-                continue;
+        for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
+            auto j = order[u];
+            if (!vertexInfo[j].colored) {
+                vertexInfo[j].saturation.emplace(nextColor);
+                uncolored.increase(handles[j], &vertexInfo[j]);
             }
-
-            neighbourColors[j].emplace(nextColor);
-            saturation[j] = neighbourColors[j].size();
-
-            std::get<0>(*heapHandles[j]) = saturation[j];
-            uncoloredVertices.increase(heapHandles[j]);
         }
     }
 

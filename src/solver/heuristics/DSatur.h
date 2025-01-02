@@ -9,10 +9,6 @@
 #include <boost/heap/fibonacci_heap.hpp>
 
 namespace heuristics {
-namespace detail {
-
-} // namespace detail
-
 namespace impl {
 template <typename VertexListGraph, class Order, class ColorMap>
 typename boost::property_traits<ColorMap>::value_type
@@ -28,59 +24,57 @@ DSaturSequentialVertexColoring(VertexListGraph const& g, Order order, ColorMap c
 
     std::vector<SizeType> mark(n, std::numeric_limits<ColorType>::max BOOST_PREVENT_MACRO_SUBSTITUTION ());
 
-    std::unordered_map<SizeType, Vertex> vertices;
+    struct VertexInfo {
+        SizeType i;
+        Vertex v;
 
-    std::vector<SizeType> degrees(n);
-
-    std::unordered_set<SizeType> uncoloredVertices;
-    std::vector<std::unordered_set<ColorType>> neighbourColors(n);
-
-    for (auto v: boost::make_iterator_range(boost::vertices(g))) {
-        auto i = order[v];
-
-        vertices[i] = v;
-
-        boost::put(color, v, 0);
-        uncoloredVertices.emplace(i);
-
-        degrees[i] = boost::out_degree(v, g);
-    }
-
-    std::vector<SizeType> saturation(n);
-    for (auto v: boost::make_iterator_range(boost::vertices(g))) {
-        auto i = order[v];
-        saturation[i] = neighbourColors[i].size();
-    }
-
-    auto findMaxSaturation = [&uncoloredVertices, &saturation, &degrees, &vertices]() {
-        SizeType maxSaturation = 0;
-
-        for (auto i: uncoloredVertices) {
-            if (saturation[i] > maxSaturation) {
-                maxSaturation = saturation[i];
-            }
-        }
-
-        std::set<std::pair<SizeType, SizeType>> tieBreaker; // pair (degree, index)
-        for (auto i: uncoloredVertices) {
-            if (saturation[i] == maxSaturation) {
-                tieBreaker.emplace(degrees[i], i);
-            }
-        }
-
-        return vertices[tieBreaker.rbegin()->second];
+        SizeType degree;
+        std::unordered_set<ColorType> saturation;
     };
 
-    while (!uncoloredVertices.empty()) {
-        auto cur = findMaxSaturation();
+    std::vector<VertexInfo> vertexInfo(n);
+    std::unordered_set<SizeType> uncolored;
+    for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+        SizeType i = order[v];
+        vertexInfo[i] = {
+            .i = i,
+            .v = v,
+            .degree = boost::out_degree(v, g),
+            .saturation = {} 
+        };
+        boost::put(color, v, 0);
+        uncolored.emplace(i);
+    }
 
-        auto i = order[cur];
-        for (auto v: boost::make_iterator_range(boost::adjacent_vertices(cur, g))) {
-            mark[boost::get(color, v)] = i;
+    auto findCandidate = [&vertexInfo, &uncolored]() {
+        SizeType maxSaturation = 0;
+
+        for (auto i: uncolored) {
+            maxSaturation = std::max(maxSaturation, vertexInfo[i].saturation.size());
+        }
+
+        std::set<std::pair<SizeType, SizeType>> candidates; // pair (degree, index in vertexInfo)
+        for (auto i: uncolored) {
+            if (vertexInfo[i].saturation.size() == maxSaturation) {
+                candidates.emplace(vertexInfo[i].degree, i);
+            }
+        }
+
+        SizeType const i = candidates.rbegin()->second;
+        uncolored.erase(i);
+        return i;
+    };
+
+    while (!uncolored.empty()) {
+        auto i = findCandidate();
+        auto v = vertexInfo[i].v;
+
+        for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
+            mark[boost::get(color, u)] = i;
         }
 
         ColorType nextColor = 0;
-        while (nextColor < maxColor && mark[nextColor] == static_cast<SizeType>(i)) {
+        while (nextColor < maxColor && mark[nextColor] == i) {
             ++nextColor;
         }
 
@@ -88,15 +82,12 @@ DSaturSequentialVertexColoring(VertexListGraph const& g, Order order, ColorMap c
             ++maxColor;
         }
 
-        boost::put(color, cur, nextColor);
-        for (auto v: boost::make_iterator_range(boost::adjacent_vertices(cur, g))) {
-            auto j = order[v];
+        boost::put(color, v, nextColor);
 
-            neighbourColors[j].emplace(nextColor);
-            saturation[j] = neighbourColors[j].size();
+        for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
+            auto j = order[u];
+            vertexInfo[j].saturation.emplace(nextColor);
         }
-
-        uncoloredVertices.erase(i);
     }
 
     return maxColor;

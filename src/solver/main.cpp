@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-#include "heuristics/DSatur.h"
+#include "coloring.h"
 
 struct VertexProperty {
     int32_t index;
@@ -54,49 +54,21 @@ void FromDIMACS(std::istream &in, Graph &g, std::vector<Vertex> &vertices)
         vertices.emplace_back(boost::add_vertex(VertexProperty(i), g));
     }
 
+    // abscence of parallel edges 
+    std::set<std::pair<int32_t, int32_t>> edges;
+    
     for (int32_t i = 0, v, u; i < m; ++i) {
         in >> ch >> v >> u;
         assert(ch == 'e');
-        boost::add_edge(vertices[v - 1], vertices[u - 1], g);
+        --v, --u;
+        if (!edges.contains(std::minmax(v, u))) {
+            boost::add_edge(vertices[v], vertices[u], g);
+            edges.emplace(std::minmax(v, u));
+        }
     }
 
     std::cout << boost::num_vertices(g) << ' ' << boost::num_edges(g) << std::endl;
 }
-
-class Coloring {
-public:
-    enum Config: uint16_t {
-        DSATUR,                 // O(n^2)
-        DSATUR_BINARY_HEAP,     // O((m + n)logn)
-        DSATUR_FIBONACCI_HEAP,  // O(m + nlogn)
-
-        __END
-    };
-
-    template <class VertexListGraph, class P, class T, class R>
-    static auto Process(VertexListGraph const& g, boost::bgl_named_params<P, T, R> const& params, Config config)
-    {
-        switch (config) {
-        case DSATUR: return heuristics::DSaturSequentialVertexColoring(g, params);
-        case DSATUR_BINARY_HEAP: throw std::invalid_argument("DSATUR_BINARY_HEAP is not implemented");
-        case DSATUR_FIBONACCI_HEAP: return heuristics::DSaturSparseSequentialVertexColoring(g, params);
-        default: throw std::invalid_argument("unknown config parameter");;
-        }
-    }
-
-    template <class VertexListGraph, class ColorMap>
-    static bool Validate(VertexListGraph const& g, ColorMap color)
-    {
-        for (auto v: boost::make_iterator_range(boost::vertices(g))) {
-            for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
-                if (color[v] == color[u]) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-};
 
 int32_t main(int32_t argc, char **argv)
 {
@@ -115,22 +87,44 @@ int32_t main(int32_t argc, char **argv)
     std::cout << "Components: " << ncomps << std::endl;
     
     boost::timer::cpu_timer t;
-    auto ncolors = Coloring::Process(
+    auto ncolors = solver::Process(
         g,
         boost::color_map(boost::get(&VertexProperty::color, g))
-            .vertex_index_map(boost::get(&VertexProperty::index, g)),
-        static_cast<Coloring::Config>(std::stoi(argv[1]))
+            .vertex_index_map(boost::get(&VertexProperty::index, g))
+            .vertex_index1_map(boost::get(&VertexProperty::component, g)),
+        static_cast<solver::Config>(std::stoi(argv[1]))
     );
     boost::timer::cpu_times times = t.elapsed();
     std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;
 
-    auto status = Coloring::Validate(g, boost::get(&VertexProperty::color, g));
+    auto status = solver::Validate(g, boost::get(&VertexProperty::color, g));
     if (!status) {
         std::cout << "Bad coloring" << std::endl;
         return EXIT_FAILURE;
     }
 
     std::cout << "Found coloring N=" << ncolors << std::endl;
+
+
+
+
+    // std::cout << std::endl;
+
+    // auto order = boost::get(&VertexProperty::index, g);
+    // auto color = boost::get(&VertexProperty::color, g);
+    // auto order1 = boost::get(&VertexProperty::component, g);
+
+    // for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+    //     std::cout << '(' << order[v] << ", {\'label\': \'" << color[v] << " | " << order1[v] << "\', \'degree\': " << boost::out_degree(v, g) << "}),\n";
+    // }
+
+    // std::cout << std::endl;
+
+    // for (auto e: boost::make_iterator_range(boost::edges(g))) {
+    //     auto v = boost::source(e, g);
+    //     auto u = boost::target(e, g);
+    //     std::cout << '(' << order[v] << ", " << order[u] << "),\n";
+    // }
 
     return EXIT_SUCCESS;
 }

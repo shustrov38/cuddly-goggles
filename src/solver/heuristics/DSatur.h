@@ -98,8 +98,10 @@ auto DSaturSequentialVertexColoring(
     typename ICandidateSelector<Info>::Ptr selector;
     if (config == DSATUR) {
         selector = std::make_unique<DenseCandidateSelector<Info>>();
+    } else if (config == DSATUR_BINARY_HEAP) {
+        selector = std::make_unique<SparseCandidateSelectorBin<Info>>();
     } else if (config == DSATUR_FIBONACCI_HEAP) {
-        selector = std::make_unique<SparseCandidateSelector<Info>>();
+        selector = std::make_unique<SparseCandidateSelectorFib<Info>>();
     } else {
         throw std::invalid_argument("unknown config parameter");
     }

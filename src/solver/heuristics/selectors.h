@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/heap/fibonacci_heap.hpp>
+#include <boost/heap/binomial_heap.hpp>
 
 #include "vertex_info.h"
 
@@ -69,7 +70,7 @@ private:
     std::unordered_set<SizeType> mUncolored;
 };
 
-template <typename Info>
+template <typename Info, template <typename T, class... Options> class HeapType>
 class SparseCandidateSelector final: public ICandidateSelector<Info> {
     using Parent = ICandidateSelector<Info>;
 
@@ -90,7 +91,7 @@ public:
         }
     };
 
-    using Heap = boost::heap::fibonacci_heap<InfoPtr, boost::heap::compare<CompareInfo>>;
+    using Heap = HeapType<InfoPtr, boost::heap::compare<CompareInfo>>;
     using HandleType = typename Heap::handle_type;
 
     void Init(SizeType n, std::vector<Info> &vinfo) override final
@@ -121,4 +122,10 @@ private:
     Heap mUncolored;
     std::vector<HandleType> mHandles;
 };
+
+template <typename Info>
+using SparseCandidateSelectorBin = SparseCandidateSelector<Info, boost::heap::binomial_heap>;
+
+template <typename Info>
+using SparseCandidateSelectorFib = SparseCandidateSelector<Info, boost::heap::fibonacci_heap>;
 } // namespace solver::heuristics

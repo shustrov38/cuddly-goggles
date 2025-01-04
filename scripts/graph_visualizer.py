@@ -1,51 +1,51 @@
 import sys
-from dataclasses import dataclass
+
+import networkx as nx
 
 import matplotlib.pyplot as plt
 
+G = nx.Graph()
 
-@dataclass
-class Point:
-    x: float
-    y: float
+G.add_nodes_from([
+(7, {'label': '3 | 4', 'degree': 5}),
+(4, {'label': '1 | 7', 'degree': 4}),
+(2, {'label': '0 | 9', 'degree': 2}),
+(3, {'label': '1 | 8', 'degree': 2}),
+(6, {'label': '1 | 2', 'degree': 5}),
+(1, {'label': '0 | 10', 'degree': 2}),
+(0, {'label': '4 | 6', 'degree': 4}),
+(5, {'label': '2 | 3', 'degree': 5}),
+(9, {'label': '2 | 5', 'degree': 4}),
+(8, {'label': '0 | 1', 'degree': 5}),
+])
 
+G.add_edges_from([
+(8, 3),
+(8, 4),
+(8, 9),
+(8, 6),
+(8, 5),
+(9, 0),
+(4, 2),
+(4, 0),
+(4, 9),
+(6, 7),
+(6, 5),
+(6, 9),
+(6, 0),
+(0, 7),
+(5, 7),
+(5, 3),
+(2, 7),
+(1, 7),
+(1, 5),
+])
 
-@dataclass
-class Vertex:
-    i: int
-    p: Point
-
-
-arr_x = []
-arr_y = []
+label_map = {node: G.nodes[node]['label'] for node in G}
 
 fig, ax = plt.subplots()
 
-verts = []
-
-for line in sys.stdin:
-    if line.startswith('v'):
-        _, v, x, y = line.split()
-        pt = Point(float(x), float(y))
-        vert = Vertex(int(v), pt)
-        verts.append(vert)
-        arr_x.append(pt.x)
-        arr_y.append(pt.y)
-    elif line.startswith('e'):
-        _, v, u = line.split()
-        v = int(v)
-        u = int(u)
-
-        x1, y1 = [verts[v].p.x, verts[u].p.x], [verts[v].p.y, verts[u].p.y]
-        plt.plot(x1, y1)
-
-
-ax.scatter(arr_x, arr_y)
-
-marg = plt.margins()[1]
-ax.set_ylim(0 - marg, 1 + marg)
-ax.set_xlim(0 - marg, 1 + marg)
-ax.set_aspect('equal')
-ax.axis("off")
+nx.draw(G, pos=nx.planar_layout(G), ax=ax, node_size=1000)
+nx.draw_networkx_labels(G, pos=nx.planar_layout(G), ax=ax, labels=label_map)
 
 plt.show()

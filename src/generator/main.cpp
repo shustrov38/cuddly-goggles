@@ -94,6 +94,7 @@ static void FaceCounts(std::ostream &out, generator::Generator::Graph const& g)
     );
 
     if (!isPlanar) {
+        out << "c STATS: The graph is not planar :D" << std::endl;
         return;
     }
 

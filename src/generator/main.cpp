@@ -1,7 +1,15 @@
+#include <boost/graph/boyer_myrvold_planar_test.hpp>
+#include <boost/graph/planar_face_traversal.hpp>
+
 #include <boost/program_options.hpp>
 
 #include <iostream>
+#include <fstream>
+#include <ostream>
+#include <iomanip>
+#include <vector>
 
+#include "dimacs_coloring_io.h"
 #include "generator.h"
 
 namespace po = boost::program_options;
@@ -37,6 +45,75 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
     return true;
 }
 
+namespace user_comments {
+namespace detail {
+struct FaceCounter : public boost::planar_face_traversal_visitor
+{
+    size_t currentFaceVerts { 0 };
+    std::map<size_t, size_t>& faceStats;
+
+    FaceCounter(std::map<size_t, size_t>& stats) : faceStats(stats) {}
+
+    void begin_traversal() { faceStats.clear(); }
+
+    void begin_face() { currentFaceVerts = 0; }
+
+    template <typename Vertex>
+    void next_vertex(Vertex) { currentFaceVerts++; }
+
+    void end_face() { faceStats[currentFaceVerts]++; }
+};
+} // namespace detail
+
+static void ConnectedComponents(std::ostream &out, generator::Generator::Graph const& g)
+{
+    using VertexProperty = generator::Generator::VertexProperty;
+
+    int32_t ncomps = 0;
+    for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+        ncomps = std::max(ncomps, boost::get(&VertexProperty::component, g, v) + 1);
+    }
+
+    out << "c STATS: Connected components = " << ncomps << std::endl;
+}
+
+static void FaceCounts(std::ostream &out, generator::Generator::Graph const& g)
+{
+    using Edge = generator::Generator::Edge;
+    using EdgeProperty = generator::Generator::EdgeProperty;
+    using VertexProperty = generator::Generator::VertexProperty;
+    
+    std::vector<std::vector<Edge>> embedding(boost::num_vertices(g));
+
+    namespace P = boost::boyer_myrvold_params; 
+    bool isPlanar = boost::boyer_myrvold_planarity_test(
+        P::graph = g,
+        P::embedding = &embedding[0],
+        P::edge_index_map = boost::get(&EdgeProperty::index, g),
+        P::vertex_index_map = boost::get(&VertexProperty::index, g)
+    );
+
+    if (!isPlanar) {
+        return;
+    }
+
+    std::map<size_t, size_t> faceStats;
+    detail::FaceCounter visitor(faceStats);
+    boost::planar_face_traversal(g, &embedding[0], visitor, boost::get(&EdgeProperty::index, g));
+
+    out << "c STATS: Face vertex count distribution:" << std::endl;
+    for (auto const& [vertCount, faceCount] : faceStats) {
+        out << "c        " 
+            << std::setw(3) << vertCount << " verts: "
+            << std::setw(5) << faceCount << " face";
+        if (faceCount != 1) [[likely]] {
+            out << 's';
+        }
+        out << std::endl;
+    }
+}
+} // namespace user_comments
+
 int32_t main(int32_t argc, char **argv)
 {
     generator::Parameters params;
@@ -48,7 +125,19 @@ int32_t main(int32_t argc, char **argv)
     generator::Generator gen;
     gen.Generate(params);
 
-    gen.ToDIMACS(std::cout);
+    auto const& graph = gen.GetGraph();
+    
+    using DimacsIO = utils::DimacsColoringIO<generator::Generator::Graph>;
+    using Comments = DimacsIO::Comments;
+
+    DimacsIO::Write(graph, std::cout, 
+        Comments::Description,      // SOURCE and DESCRIPTION
+        Comments::Separator,        // beginning of STATS section
+        Comments::Density,
+        user_comments::FaceCounts,
+        user_comments::ConnectedComponents,
+        Comments::Separator         // beginning of problem description
+    );
 
     if (params.svgPath) {
         std::ofstream svg(*params.svgPath);

@@ -3,18 +3,14 @@
 #include <boost/geometry/geometries/register/point.hpp>
 #include <boost/geometry/io/svg/svg_mapper.hpp>
 
-#include <boost/graph/boyer_myrvold_planar_test.hpp>
 #include <boost/graph/kruskal_min_spanning_tree.hpp>
-#include <boost/graph/planar_face_traversal.hpp>
+#include <boost/graph/connected_components.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
-#include <boost/graph/graphviz.hpp>
 
 #include <boost/range/iterator_range.hpp>
 
 #include <boost/polygon/voronoi.hpp>
-
-#include <boost/timer/timer.hpp>
 
 #include <filesystem>
 #include <optional>
@@ -60,17 +56,24 @@ struct Parameters {
 };
 
 class Generator {
+public:
     using Points = std::vector<Point>;
 
     struct VertexProperty {
         int32_t index;
         Point coord;
 
+        // connected_component dependency
+        boost::default_color_type used;
+        int32_t component;
+
         VertexProperty() = default;
 
         explicit VertexProperty(int32_t index, Point const& coord)
             : index(index)
             , coord(coord)
+            , used(boost::white_color)
+            , component(0)
         {
         }
     };
@@ -92,20 +95,16 @@ class Generator {
     using Edge = GraphTraits::edge_descriptor;
     using Vertex = GraphTraits::vertex_descriptor;
 
-public:
     void Generate(Parameters const& params);
+    Graph const& GetGraph() const;
 
     void ToSVG(std::ostream &svg) const;
-    void ToDIMACS(std::ostream &out) const;
 
 private:
     void GenerateRandomPoints(Points &points);
     void BuildGraphUsingVoronoiDiagram(Points const &points);
     void FindRandomMST();
     void RemoveEdgesWithProp(double prop = 0.5, bool connectivity = true);
-
-    void AddStatsToDIMACS(std::ostream &out) const;
-    void ComputeFaceStats(std::map<size_t, size_t> &faceStats) const;
 
     Graph mGraph;
 };

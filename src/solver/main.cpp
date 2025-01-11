@@ -13,7 +13,7 @@
 struct VertexProperty {
     int32_t index;
 
-    boost::default_color_type used {boost::white_color};
+    boost::default_color_type used { boost::white_color };
     int32_t component { 0 };
 
     int32_t color { 0 };
@@ -42,7 +42,7 @@ void FromDIMACS(std::istream &in, Graph &g, std::vector<Vertex> &vertices)
     char ch;
     std::string line;
     while (std::getline(in, line) && line.starts_with('c'));
-    
+
     int32_t n;
     int32_t m;
     std::stringstream ss(line);
@@ -54,9 +54,9 @@ void FromDIMACS(std::istream &in, Graph &g, std::vector<Vertex> &vertices)
         vertices.emplace_back(boost::add_vertex(VertexProperty(i), g));
     }
 
-    // abscence of parallel edges 
+    // abscence of parallel edges
     std::set<std::pair<int32_t, int32_t>> edges;
-    
+
     for (int32_t i = 0, v, u; i < m; ++i) {
         in >> ch >> v >> u;
         assert(ch == 'e');
@@ -76,7 +76,7 @@ int32_t main(int32_t argc, char **argv)
     std::vector<Vertex> vertices;
 
     FromDIMACS(std::cin, g, vertices);
-    
+
     int32_t ncomps = boost::connected_components(
         g,
         boost::get(&VertexProperty::component, g),
@@ -85,7 +85,7 @@ int32_t main(int32_t argc, char **argv)
     );
 
     std::cout << "Components: " << ncomps << std::endl;
-    
+
     boost::timer::cpu_timer t;
     auto ncolors = solver::Process(
         g,

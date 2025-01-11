@@ -2,13 +2,14 @@
 
 #include <random>
 #include <iterator>
+#include <algorithm>
 
 #include "callback_iterator.h"
 
 namespace rnd {
 namespace mt19937 {
 namespace detail {
-extern std::mt19937 gen; 
+extern std::mt19937 gen;
 } // namespace detail
 
 int32_t Get(int32_t lo, int32_t hi);
@@ -19,7 +20,7 @@ void Sample(ForwardIt begin, ForwardIt end, size_t count, Func callback)
 {
     using T = std::decay_t<typename std::iterator_traits<ForwardIt>::value_type>;
     std::sample(
-        begin, end, 
+        begin, end,
         utils::CallbackIterator<T>(callback),
         count, detail::gen
     );

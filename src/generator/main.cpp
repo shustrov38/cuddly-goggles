@@ -20,16 +20,27 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
     po::options_description desc("Options");
     desc.add_options()
         ("help,h", "Produce help message")
-        ("numVertices,N", po::value<size_t>(&params.numVertices)->required(), "Number of vertices in graph")
+        ("num-vertices,N", po::value<size_t>(&params.numVertices)->required(), "Number of vertices in graph")
+        ("remove-propability,p", po::value<double>(&params.removePropability)->default_value(0.5), "Propability of removing edge from graph")
+        ("connectivity,c", "Make graph connected (1 connected component)")
         ("export-svg", po::value<fs::path>()->composing(), "Path to SVG result");
 
     po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
+    try {
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+    } catch(std::exception& e) {
+        std::cerr << "\033[31m" << "Error: " << e.what() << std::endl;
+        return false;
+    }
 
     if (vm.contains("help")) {
         std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
         std::cout << desc << std::endl;
         return false;
+    }
+
+    if (vm.contains("connectivity")) {
+        params.connectivity = true;
     }
 
     if (vm.contains("export-svg")) {

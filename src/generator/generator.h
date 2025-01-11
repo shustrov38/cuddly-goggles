@@ -52,6 +52,10 @@ struct point_traits<Point> {
 namespace generator {
 struct Parameters {
     size_t numVertices { 0 };
+    
+    bool connectivity { false };
+    double removePropability { 0.5 };
+
     std::optional<std::filesystem::path> svgPath { std::nullopt };
 };
 

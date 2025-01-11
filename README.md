@@ -1,7 +1,7 @@
 # cuddly-goggles
 
 ## Generator
-Planar graph generator based on Voronoi diagram with random edge removal.
+Planar graph generator based on Voronoi diagram with random edge removal. To clarify, it should be said that the algorithm generates a set of random points on a plane and builds a Voronoi Diagram on them. After that, the centers of the resulting Voronoi cells become the vertices of the graph. And edges are drawn between adjacent cells. To form arbitrary faces, random edges are removed from the graph.
 
 ### Features
 - Can efficienlty generate huge planar graph with `4e5` verties in under a minute.

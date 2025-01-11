@@ -105,8 +105,8 @@ static void FaceCounts(std::ostream &out, generator::Generator::Graph const& g)
     out << "c STATS: Face vertex count distribution:" << std::endl;
     for (auto const& [vertCount, faceCount] : faceStats) {
         out << "c        " 
-            << std::setw(3) << vertCount << " verts: "
-            << std::setw(5) << faceCount << " face";
+            << std::setw(4) << vertCount << " verts: "
+            << std::setw(7) << faceCount << " face";
         if (faceCount != 1) [[likely]] {
             out << 's';
         }

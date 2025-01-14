@@ -129,7 +129,6 @@ static void FaceCounts(std::ostream &out, generator::Generator::Graph const& g)
 int32_t main(int32_t argc, char **argv)
 {
     generator::Parameters params;
-
     if (!ProcessCommandLine(argc, argv, params)) {
         return EXIT_FAILURE;
     }

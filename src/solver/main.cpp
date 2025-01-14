@@ -1,23 +1,100 @@
+#include <boost/program_options.hpp>
+
 #include <boost/timer/timer.hpp>
 
+#include <filesystem>
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <sstream>
+#include <fstream>
 
 #include <dimacs_coloring_io.h>
+#include <stdexcept>
+#include <string>
 
 #include "heuristics/dsatur.h"
 #include "graph.h"
 
 #include "coloring.h"
 
+namespace po = boost::program_options;
+namespace fs = std::filesystem;
+
+struct Parameters {
+    std::optional<std::filesystem::path> inputPath { std::nullopt };
+};
+
+bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
+{
+    po::options_description desc("Options");
+    desc.add_options()
+        ("help,h", "Produce help message")
+        ("input,i", po::value<fs::path>()->composing(), "Path to DIMACS problem");
+
+    po::variables_map vm;
+    try {
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+    } catch(std::exception& e) {
+        std::cerr << "\033[31m" << "Error: " << e.what() << std::endl;
+        return false;
+    }
+
+    if (vm.contains("help")) {
+        std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
+        std::cout << desc << std::endl;
+        return false;
+    }
+
+    if (vm.contains("input")) {
+        params.inputPath = vm["input"].as<fs::path>();
+    }
+
+    try {
+        po::notify(vm);
+    } catch(std::exception& e) {
+        std::cerr << "\033[31m" << "Error: " << e.what() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+std::unique_ptr<std::istream> CreateIstream(std::string&& source, bool fromFile) {
+    if (fromFile) {
+        auto ptr = std::make_unique<std::ifstream>(std::string(source));
+        if (!ptr->is_open()) {
+            throw std::runtime_error("Unable to open file for reading");
+        }
+        return ptr;
+    }
+    return std::make_unique<std::stringstream>(source);
+}
+
 int32_t main(int32_t argc, char **argv)
 {
+    Parameters params;
+    if (!ProcessCommandLine(argc, argv, params)) {
+        return EXIT_FAILURE;
+    }
+
     solver::Graph g;
 
+    std::unique_ptr<std::istream> streamPtr;
+    try {
+        if (params.inputPath) {
+            streamPtr = CreateIstream(*params.inputPath, true);
+        } else {
+            std::ostringstream oss;
+            oss << std::cin.rdbuf();
+            streamPtr = CreateIstream(oss.str(), false);
+        }
+    } catch(std::exception& e) {
+        std::cerr << "\033[31m" << "Error: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+    
     using DimacsIO = utils::DimacsColoringIO<solver::Graph>;
-    std::stringstream ss;
-    ss << std::cin.rdbuf();
-    DimacsIO::Read(g, boost::get(&solver::VertexProperty::index, g), ss);
+    DimacsIO::Read(g, boost::get(&solver::VertexProperty::index, g), *streamPtr);
 
     boost::timer::cpu_timer t;
     auto ncolors = solver::heuristics::DSatur(g, solver::DSATUR_FIBONACCI_HEAP);

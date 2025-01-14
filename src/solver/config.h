@@ -1,6 +1,8 @@
 #pragma once 
 
 #include <cstdint>
+#include <istream>
+#include <cctype>
 
 namespace solver {
 enum Config: uint16_t {
@@ -12,4 +14,6 @@ enum Config: uint16_t {
 
     __END
 };
+
+std::istream &operator >>(std::istream& in, Config& config);
 } // namespace solver

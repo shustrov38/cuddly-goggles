@@ -1,28 +1,29 @@
 # cuddly-goggles
 
 ## Generator
-Planar graph generator based on Voronoi diagram with random edge removal. To clarify, it should be said that the algorithm generates a set of random points on a plane and builds a Voronoi Diagram on them. After that, the centers of the resulting Voronoi cells become the vertices of the graph. And edges are drawn between adjacent cells. To form arbitrary faces, random edges are removed from the graph.
+Planar graph generator based on the Voronoi diagram and random edge removal.
+To clarify, the algorithm first generates a set of random points in the plane and constructs a Voronoi diagram from these points. The centers of the Voronoi cells then become the vertices of the graph, and edges are drawn between adjacent cells to form the graph's structure. Finally, random edges are removed to create arbitrary faces in the graph.
 
 ### Features
-- Can efficienlty generate huge planar graph with `4e5` verties in under a minute.
-- Advantage of controlling graph `density` and `connectivity`.
-- Calculates important statistics for graph analysis, such `Average vertex degree`, `Edge density`, `Connected components` and the `Face vertex count distribution`.
+- Can `efficiently` generate huge planar graphs with `4e5` vertices in under a minute.
+- Advantage of controlling the graph's `density` and `connectivity`.
+- Calculates important statistics for graph analysis, such as the `average vertex degree`, `edge density`, `connected components`, and the `face vertex count distribution`.
 
 ### Usage
 Output of `help` message
-```bash
-Usage: ./generator/generator [options]
+```text
+Usage: ./generator [options]
 Options:
-  -h [ --help ]                   Produce help message
-  -N [ --num-vertices ] arg       Number of vertices in graph
-  -p [ --remove-prop ] arg (=0.5) Propability of removing edge from graph
-  -c [ --connectivity ]           Make graph connected (1 connected component)
-  --export-svg arg                Path to SVG result
+  -h [ --help ]                   Produce help message.
+  -N [ --num-vertices ] arg       Number of vertices in graph.
+  -p [ --remove-prop ] arg (=0.5) Propability of removing edge from graph.
+  -c [ --connectivity ]           Make graph connected (1 connected component).
+  --export-svg arg                Path to SVG result.
 
 ```
 
-Example of generating of `connected` planar graph with `10` vertices. Generator prints graph in `DIMACS` format for coloring problem.
-```bash
+Example of generating `connected` planar graph with `10` vertices. Generator prints graph in `DIMACS` format for coloring problem.
+```text
 $ ./generator -N 10 -c -p 0.75
 c SOURCE: Dmitriy Shustrov (shustrov38@gmail.com)
 c DESCRIPTION: Planar graph based on Voronoi Diagram with random edges removed.

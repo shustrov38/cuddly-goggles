@@ -1,4 +1,5 @@
 #pragma once
+#include "boost/graph/subgraph.hpp"
 #include <boost/graph/boyer_myrvold_planar_test.hpp>
 #include <boost/graph/planar_face_traversal.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -7,6 +8,7 @@
 
 #include <ostream>
 #include <iomanip>
+#include <string>
 
 namespace utils {
 template<typename VertexListGraph>
@@ -52,7 +54,8 @@ public:
     };
 
     template <class... Commenters>
-    static void Write(VertexListGraph const& g, std::ostream &out, Commenters&&... comments) noexcept {
+    static void Write(VertexListGraph const& g, std::ostream &out, Commenters&&... comments) noexcept 
+    {
         // Write problem comments
         // Format: c comments
         (comments(out, g), ...);
@@ -86,6 +89,59 @@ public:
             VertexSizeType v = order[target] + 1;
 
             out << "e " << u << " " << v << "\n";
+        }
+    }
+
+    template <typename Order>
+    static void Read(VertexListGraph &g, Order order, std::istream &in)
+    {
+        VertexSizeType numVertices = 0;
+        EdgeSizeType numEdges = 0;
+
+        bool headerParsed = false;
+
+        for (std::string line; std::getline(in, line);) {
+            if (line.empty()) {
+                continue;
+            }
+
+            if (line[0] == 'c') {
+                continue;
+            } else if (line[0] == 'p') {
+                std::istringstream iss(line);
+                char p;
+                std::string type;
+                iss >> p >> type >> numVertices >> numEdges;
+                headerParsed = true;
+            }
+        }
+
+        if (!headerParsed) {
+            throw std::runtime_error("There is no problem description");
+        }
+
+        g.clear();
+        
+        for (size_t i = 0; i < numVertices; ++i) {
+            Vertex v = boost::add_vertex({}, g);
+            order[v] = i;
+        }
+
+        in.clear();
+        in.seekg(0, std::ios::beg);
+        
+        for (std::string line; std::getline(in, line);) {
+            if (line.empty() || line.starts_with('c') || line.starts_with('p')) {
+                continue;
+            }
+
+            if (line.starts_with('e')) {
+                std::istringstream iss(line);
+                char e;
+                std::size_t u, v;
+                iss >> e >> u >> v;
+                boost::add_edge(u - 1, v - 1, g);
+            }
         }
     }
 };

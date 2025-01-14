@@ -9,7 +9,7 @@
 #include <iomanip>
 #include <vector>
 
-#include "dimacs_coloring_io.h"
+#include <dimacs_coloring_io.h>
 #include "generator.h"
 
 namespace po = boost::program_options;
@@ -19,11 +19,11 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
 {
     po::options_description desc("Options");
     desc.add_options()
-        ("help,h", "Produce help message")
-        ("num-vertices,N", po::value<size_t>(&params.numVertices)->required(), "Number of vertices in graph")
-        ("remove-prop,p", po::value<double>(&params.removePropability)->default_value(0.5), "Propability of removing edge from graph")
-        ("connectivity,c", "Make graph connected (1 connected component)")
-        ("export-svg", po::value<fs::path>()->composing(), "Path to SVG result");
+        ("help,h", "Produce help message.")
+        ("num-vertices,N", po::value<size_t>(&params.numVertices)->required(), "Number of vertices in graph.")
+        ("remove-prop,p", po::value<double>(&params.removePropability)->default_value(0.5), "Propability of removing edge from graph.")
+        ("connectivity,c", "Make graph connected (1 connected component).")
+        ("export-svg", po::value<fs::path>()->composing(), "Path to SVG result.");
 
     po::variables_map vm;
     try {

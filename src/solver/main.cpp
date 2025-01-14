@@ -4,33 +4,41 @@
 
 #include <filesystem>
 #include <iostream>
-#include <memory>
 #include <optional>
 #include <sstream>
 #include <fstream>
+#include <memory>
 
 #include <dimacs_coloring_io.h>
 #include <stdexcept>
 #include <string>
 
+#include "config.h"
 #include "heuristics/dsatur.h"
 #include "graph.h"
 
 #include "coloring.h"
 
-namespace po = boost::program_options;
 namespace fs = std::filesystem;
 
 struct Parameters {
-    std::optional<std::filesystem::path> inputPath { std::nullopt };
+    solver::Config config;
+    std::optional<fs::path> inputPath { std::nullopt };
 };
+
+namespace po = boost::program_options;
 
 bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
 {
     po::options_description desc("Options");
     desc.add_options()
-        ("help,h", "Produce help message")
-        ("input,i", po::value<fs::path>()->composing(), "Path to DIMACS problem");
+        ("help,h", "Produce help message.")
+        ("input,i", po::value<fs::path>()->composing(), "Path to DIMACS problem.")
+        ("config,c", po::value<solver::Config>(&params.config), 
+            "Coloring implementation. Possible values:"
+            " DSATUR,"
+            " DSATUR_BINARY_HEAP,"
+            " DSATUR_FIBONACCI_HEAP.");
 
     po::variables_map vm;
     try {
@@ -97,7 +105,7 @@ int32_t main(int32_t argc, char **argv)
     DimacsIO::Read(g, boost::get(&solver::VertexProperty::index, g), *streamPtr);
 
     boost::timer::cpu_timer t;
-    auto ncolors = solver::heuristics::DSatur(g, solver::DSATUR_FIBONACCI_HEAP);
+    auto ncolors = solver::heuristics::DSatur(g, params.config);
     boost::timer::cpu_times times = t.elapsed();
     std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;
 

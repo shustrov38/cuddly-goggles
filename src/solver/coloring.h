@@ -1,18 +1,10 @@
 #pragma once
 
-#include "config.h"
-#include "heuristics/DSatur.h"
+#include <boost/graph/adjacency_list.hpp>
+
+#include <boost/range/iterator_range.hpp>
 
 namespace solver {
-template <class VertexListGraph, class P, class T, class R>
-static auto Process(VertexListGraph const& g, boost::bgl_named_params<P, T, R> const& params, Config config)
-{
-    if (config < __DSATUR_BOUND) {
-        return heuristics::DSaturSequentialVertexColoring(g, params, config);
-    }
-    throw std::invalid_argument("unknown config parameter");
-}
-
 template <class VertexListGraph, class ColorMap>
 static bool Validate(VertexListGraph const& g, ColorMap color)
 {

@@ -1,7 +1,5 @@
 #include "dsatur.h"
 
-#include <memory>
-
 namespace solver::heuristics {
 namespace detail {
 inline DSaturData *Data(DataMap dataMap, Vertex v)
@@ -19,14 +17,14 @@ ColorType DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector)
     selector->Init(n, dataMap);
 
     for (auto v: boost::make_iterator_range(boost::vertices(g))) {      
-        dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g));
+        dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g), maxColor);
         colorMap[v] = 0;
 
         selector->Push(v);
     }
 
     for (SizeType _ = 0; _ < n; ++_) {
-        auto v = selector->Pop();
+        auto v = selector->Pop(g);
 
         for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
             if (Data(dataMap, u)->colored) {
@@ -61,6 +59,8 @@ ColorType DSatur(Graph &g, Config config)
         selector = std::make_shared<selectors::SparseCandidateSelectorBin>();
     } else if (config == DSATUR_FIBONACCI_HEAP) {
         selector = std::make_shared<selectors::SparseCandidateSelectorFib>();
+    } else if (config == DSATUR_SEWELL) {
+        selector = std::make_shared<selectors::SewellCandidateSelector>();
     }
 
     return detail::DSaturCore(g, selector);

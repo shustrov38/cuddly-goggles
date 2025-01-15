@@ -42,6 +42,11 @@ public:
         return Data(chosen)->index;
     }
     
+    bool Empty() override final
+    {
+        return mUncolored.empty();
+    }
+
     void Update(Vertex v) override final
     {
         mUncolored.increase(mHandles[v], mDataMap[v]);

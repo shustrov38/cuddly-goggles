@@ -7,6 +7,16 @@
 namespace solver::selectors {
 class SewellCandidateSelector final: public ICandidateSelector {
 public:
+    using Info = std::pair<SizeType, SizeType>;
+    struct CompareInfo {
+        bool operator()(Info lhs, Info rhs) const {
+            if (lhs.first != rhs.first) {
+                return lhs.first < rhs.first;
+            }
+            return lhs.second > rhs.second;
+        }
+    };
+
     void Init(SizeType n, DataMap dataMap) override final
     {
         mDataMap = dataMap;
@@ -25,7 +35,7 @@ public:
             maxSat = std::max(maxSat, Data(i)->Saturation());
         }
 
-        std::set<std::pair<SizeType, SizeType>> candidates;
+        std::set<Info, CompareInfo> candidates;
         for (auto i : mUncolored) {
             if (Data(i)->Saturation() == maxSat) {
                 candidates.emplace(Same(i, g), i);
@@ -36,6 +46,11 @@ public:
         auto chosen = bestIt->second;
         mUncolored.erase(chosen);
         return chosen;
+    }
+    
+    bool Empty() override final
+    {
+        return mUncolored.empty();
     }
 
 private:

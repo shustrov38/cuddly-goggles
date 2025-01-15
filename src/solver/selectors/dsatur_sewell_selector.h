@@ -2,8 +2,10 @@
 
 #include "icandidate_selector.h"
 
+#include <boost/range/iterator_range.hpp>
+
 namespace solver::selectors {
-class DenseCandidateSelector final: public ICandidateSelector {
+class SewellCandidateSelector final: public ICandidateSelector {
 public:
     void Init(SizeType n, DataMap dataMap) override final
     {
@@ -16,7 +18,7 @@ public:
         mUncolored.insert(i);
     }
 
-    Vertex Pop(Graph const&) override final
+    Vertex Pop(Graph const& g) override final
     {
         SizeType maxSat = 0;
         for (auto i : mUncolored) {
@@ -26,7 +28,7 @@ public:
         std::set<std::pair<SizeType, SizeType>> candidates;
         for (auto i : mUncolored) {
             if (Data(i)->Saturation() == maxSat) {
-                candidates.emplace(Data(i)->degree, i);
+                candidates.emplace(Same(i, g), i);
             }
         }
         
@@ -37,6 +39,26 @@ public:
     }
 
 private:
+    SizeType Same(Vertex v, Graph const& g)
+    {
+        Data(v)->admissibleColors = 0;
+        for (auto u: mUncolored) {
+            if (u == v) {
+                continue;
+            }
+            
+            if (auto [_, hasEdge] = boost::edge(u, v, g); !hasEdge) {
+                continue;
+            }
+
+            ColorType adm = (~(Data(v)->neighbourColors | Data(u)->neighbourColors)).count();
+            adm = std::min(adm, Data(v)->maxColor + 1);
+
+            Data(v)->admissibleColors += adm;
+        }
+        return Data(v)->admissibleColors;
+    }
+
     DSaturData *Data(Vertex v)
     {
         return static_cast<DSaturData *>(mDataMap[v].get());

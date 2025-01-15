@@ -38,7 +38,8 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
             "Coloring implementation. Possible values:"
             " DSATUR,"
             " DSATUR_BINARY_HEAP,"
-            " DSATUR_FIBONACCI_HEAP.");
+            " DSATUR_FIBONACCI_HEAP,"
+            " DSATUR_SEWELL.");
 
     po::variables_map vm;
     try {

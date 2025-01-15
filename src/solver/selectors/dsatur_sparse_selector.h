@@ -35,7 +35,7 @@ public:
         mHandles[v] = mUncolored.push(mDataMap[v]);
     }
 
-    Vertex Pop() override final
+    Vertex Pop(Graph const&) override final
     {
         DataType chosen = mUncolored.top();
         mUncolored.pop();

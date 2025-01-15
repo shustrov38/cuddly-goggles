@@ -12,7 +12,7 @@ struct ICandidateSelector {
 
     virtual void Init(SizeType, DataMap) = 0;
     virtual void Push(Vertex) = 0;
-    virtual Vertex Pop() = 0;
+    virtual Vertex Pop(Graph const&) = 0;
     virtual void Update(Vertex) {};
 };
 } // namespace solver::selectors

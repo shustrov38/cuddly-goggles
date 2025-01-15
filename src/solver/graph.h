@@ -51,13 +51,18 @@ struct DSaturData {
     bool colored;
     
     SizeType degree;
+
     std::bitset<10> neighbourColors;
 
-    explicit DSaturData(SizeType index, SizeType degree)
+    ColorType const& maxColor;
+    SizeType admissibleColors;
+
+    explicit DSaturData(SizeType index, SizeType degree, ColorType const& maxColor)
         : index(index)
         , colored(false)
         , degree(degree)
         , neighbourColors(0)
+        , maxColor(maxColor)
     {
     }
 

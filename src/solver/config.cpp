@@ -16,6 +16,8 @@ std::istream &operator>>(std::istream& in, Config& config)
         config = DSATUR_BINARY_HEAP;
     } else if (token == "DSATUR_FIBONACCI_HEAP") {
         config = DSATUR_FIBONACCI_HEAP;
+    } else if (token == "DSATUR_SEWELL") {
+        config = DSATUR_SEWELL;
     } else {
         in.setstate(std::ios_base::failbit);
     }

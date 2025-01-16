@@ -3,7 +3,7 @@
 #include <limits>
 #include <stack>
 #include <unordered_map>
-#include <iostream>
+// #include <iostream>
 
 namespace solver::exact {
 namespace detail {
@@ -20,7 +20,7 @@ struct Solution {
 
 void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution &solution)
 {
-    if (selector->Empty()) {
+    if (selector->Empty() || solution.maxColor.top() == 3) {
         solution.answer = std::min(solution.answer, solution.maxColor.top());
         return;
     }

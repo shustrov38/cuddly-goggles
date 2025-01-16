@@ -1,23 +1,23 @@
+#include <atomic>
 #include <boost/program_options.hpp>
 
 #include <boost/timer/timer.hpp>
 
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <optional>
 #include <sstream>
 #include <fstream>
+#include <thread>
 #include <memory>
 
 #include <dimacs_coloring_io.h>
 #include <stdexcept>
 #include <string>
 
-#include "config.h"
 #include "heuristics/dsatur.h"
 #include "exact/dsatur.h"
-#include "graph.h"
-
 #include "coloring.h"
 
 namespace fs = std::filesystem;
@@ -106,11 +106,33 @@ int32_t main(int32_t argc, char **argv)
     using DimacsIO = utils::DimacsColoringIO<solver::Graph>;
     DimacsIO::Read(g, boost::get(&solver::VertexProperty::index, g), *streamPtr);
 
+    std::atomic_bool isJobDone = false;
+    boost::timer::cpu_timer jobTimer;
+    std::thread timerThread([&isJobDone, &jobTimer]() {
+        std::chrono::seconds constexpr delayTime { 10 };
+
+        auto prev = std::chrono::system_clock::now();
+        while (!isJobDone) {
+            auto now = std::chrono::system_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - prev) < delayTime) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;
+            }
+            prev = now;
+
+            boost::timer::cpu_times times = jobTimer.elapsed();
+            std::cout << "Running solver... " << boost::timer::format(times, 5, "%w") << 's' << std::endl;
+        }
+    });
+
     boost::timer::cpu_timer t;
     // auto ncolors = solver::heuristics::DSatur(g, params.config);
     auto ncolors = solver::exact::DSatur(g, params.config);
+    isJobDone = true;
     boost::timer::cpu_times times = t.elapsed();
     std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;
+
+    timerThread.join();
 
     // auto status = solver::Validate(g, boost::get(&solver::VertexProperty::color, g));
     // if (!status) {

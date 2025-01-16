@@ -14,6 +14,11 @@ enum Config: uint16_t {
 
     __DSATUR_BOUND,
 
+    BNB_DSATUR,             // BnB with O(n^2) check    
+    BNB_DSATUR_SEWELL,      // BnB with O(n^3) check
+
+    __BNB_DSATUR_BOUND,
+
     __END
 };
 

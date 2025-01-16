@@ -109,9 +109,9 @@ ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector)
 ColorType DSatur(Graph &g, Config config)
 {
     selectors::ICandidateSelector::Ptr selector;
-    if (config == DSATUR) {
+    if (config == BNB_DSATUR) {
         selector = std::make_shared<selectors::DenseCandidateSelector>();
-    } else if (config == DSATUR_SEWELL) {
+    } else if (config == BNB_DSATUR_SEWELL) {
         selector = std::make_shared<selectors::SewellCandidateSelector>();
     }
 

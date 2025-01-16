@@ -16,6 +16,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "config.h"
+#include "graph.h"
 #include "heuristics/dsatur.h"
 #include "exact/dsatur.h"
 #include "coloring.h"
@@ -40,7 +42,10 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
             " DSATUR,"
             " DSATUR_BINARY_HEAP,"
             " DSATUR_FIBONACCI_HEAP,"
-            " DSATUR_SEWELL.");
+            " DSATUR_SEWEL,"
+
+            " BNB_DSATUR,"
+            " BNB_DSATUR_SEWELL.");
 
     po::variables_map vm;
     try {
@@ -125,9 +130,13 @@ int32_t main(int32_t argc, char **argv)
         }
     });
 
+    solver::ColorType ncolors;
     boost::timer::cpu_timer t;
-    // auto ncolors = solver::heuristics::DSatur(g, params.config);
-    auto ncolors = solver::exact::DSatur(g, params.config);
+    if (params.config < solver::__DSATUR_BOUND) {
+        ncolors = solver::heuristics::DSatur(g, params.config);
+    } else if (params.config < solver::__BNB_DSATUR_BOUND) {
+        ncolors = solver::exact::DSatur(g, params.config);
+    }
     isJobDone = true;
     boost::timer::cpu_times times = t.elapsed();
     std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;

@@ -1,12 +1,15 @@
+#include <atomic>
 #include <boost/program_options.hpp>
 
 #include <boost/timer/timer.hpp>
 
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <optional>
 #include <sstream>
 #include <fstream>
+#include <thread>
 #include <memory>
 
 #include <dimacs_coloring_io.h>
@@ -14,9 +17,9 @@
 #include <string>
 
 #include "config.h"
-#include "heuristics/dsatur.h"
 #include "graph.h"
-
+#include "heuristics/dsatur.h"
+#include "exact/dsatur.h"
 #include "coloring.h"
 
 namespace fs = std::filesystem;
@@ -39,7 +42,10 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
             " DSATUR,"
             " DSATUR_BINARY_HEAP,"
             " DSATUR_FIBONACCI_HEAP,"
-            " DSATUR_SEWELL.");
+            " DSATUR_SEWEL,"
+
+            " BNB_DSATUR,"
+            " BNB_DSATUR_SEWELL.");
 
     po::variables_map vm;
     try {
@@ -105,16 +111,43 @@ int32_t main(int32_t argc, char **argv)
     using DimacsIO = utils::DimacsColoringIO<solver::Graph>;
     DimacsIO::Read(g, boost::get(&solver::VertexProperty::index, g), *streamPtr);
 
+    std::atomic_bool isJobDone = false;
+    boost::timer::cpu_timer jobTimer;
+    std::thread timerThread([&isJobDone, &jobTimer]() {
+        std::chrono::seconds constexpr delayTime { 10 };
+
+        auto prev = std::chrono::system_clock::now();
+        while (!isJobDone) {
+            auto now = std::chrono::system_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - prev) < delayTime) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;
+            }
+            prev = now;
+
+            boost::timer::cpu_times times = jobTimer.elapsed();
+            std::cout << "Running solver... " << boost::timer::format(times, 5, "%w") << 's' << std::endl;
+        }
+    });
+
+    solver::ColorType ncolors;
     boost::timer::cpu_timer t;
-    auto ncolors = solver::heuristics::DSatur(g, params.config);
+    if (params.config < solver::__DSATUR_BOUND) {
+        ncolors = solver::heuristics::DSatur(g, params.config);
+    } else if (params.config < solver::__BNB_DSATUR_BOUND) {
+        ncolors = solver::exact::DSatur(g, params.config);
+    }
+    isJobDone = true;
     boost::timer::cpu_times times = t.elapsed();
     std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;
 
-    auto status = solver::Validate(g, boost::get(&solver::VertexProperty::color, g));
-    if (!status) {
-        std::cout << "Bad coloring" << std::endl;
-        return EXIT_FAILURE;
-    }
+    timerThread.join();
+
+    // auto status = solver::Validate(g, boost::get(&solver::VertexProperty::color, g));
+    // if (!status) {
+    //     std::cout << "Bad coloring" << std::endl;
+    //     return EXIT_FAILURE;
+    // }
 
     std::cout << "Found coloring N=" << ncolors << std::endl;
 

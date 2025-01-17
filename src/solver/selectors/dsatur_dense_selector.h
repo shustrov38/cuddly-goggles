@@ -2,9 +2,22 @@
 
 #include "icandidate_selector.h"
 
+#include <vector>
+
 namespace solver::selectors {
 class DenseCandidateSelector final: public ICandidateSelector {
 public:
+    using Info = std::pair<SizeType, SizeType>;
+    struct CompareInfo {
+        bool operator()(Info lhs, Info rhs) const
+        {
+            if (lhs.first != rhs.first) {
+                return lhs.first < rhs.first;
+            }
+            return lhs.second < rhs.second;
+        }
+    };
+
     void Init(SizeType n, DataMap dataMap) override final
     {
         mDataMap = dataMap;
@@ -13,27 +26,39 @@ public:
 
     void Push(Vertex i) override final
     {
-        mUncolored.insert(i);
+        mUncolored.push_back(i);
     }
 
     Vertex Pop(Graph const&) override final
     {
         SizeType maxSat = 0;
-        for (auto i : mUncolored) {
-            maxSat = std::max(maxSat, Data(i)->Saturation());
+        for (size_t i = 0; i < mUncolored.size(); ++i) {
+            SizeType v = mUncolored[i];
+            maxSat = std::max(maxSat, Data(v)->Saturation());
         }
 
-        std::set<std::pair<SizeType, SizeType>> candidates;
-        for (auto i : mUncolored) {
-            if (Data(i)->Saturation() == maxSat) {
-                candidates.emplace(Data(i)->degree, i);
+        int32_t bestIndex = -1;
+        Info bestCandidate;
+        for (size_t i = 0; i < mUncolored.size(); ++i) {
+            SizeType v = mUncolored[i];
+            if (Data(v)->Saturation() != maxSat) {
+                continue;
+            }
+            Info info(Data(v)->degree, v);
+            if (bestIndex == -1 || CompareInfo{}(bestCandidate, info)) {
+                bestCandidate = info;
+                bestIndex = i;
             }
         }
-        
-        auto bestIt = candidates.rbegin();
-        auto chosen = bestIt->second;
-        mUncolored.erase(chosen);
-        return chosen;
+
+        std::swap(mUncolored[bestIndex], mUncolored.back());
+        mUncolored.pop_back();
+        return bestCandidate.second;
+    }
+
+    bool Empty() override final
+    {
+        return mUncolored.empty();
     }
 
 private:
@@ -44,6 +69,6 @@ private:
 
     DataMap mDataMap;
 
-    std::unordered_set<Vertex> mUncolored;
+    std::vector<Vertex> mUncolored;
 };
 } // namespace solver::selectors

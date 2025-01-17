@@ -1,5 +1,6 @@
 #pragma once
 
+#include <bit>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 
@@ -55,7 +56,6 @@ struct DSaturData {
     std::bitset<10> neighbourColors;
 
     ColorType const& maxColor;
-    SizeType admissibleColors;
 
     explicit DSaturData(SizeType index, SizeType degree, ColorType const& maxColor)
         : index(index)
@@ -69,6 +69,11 @@ struct DSaturData {
     void Mark(ColorType c)
     {
         neighbourColors.set(c);
+    }
+
+    auto F() const
+    {
+        return (~neighbourColors).to_ulong() & ((1 << (maxColor - 1)) - 1);
     }
 
     ColorType ColorMex() const

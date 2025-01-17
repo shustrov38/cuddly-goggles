@@ -1,9 +1,10 @@
 #include "dsatur.h"
 
-#include <limits>
+#include <bit>
+#include <bitset>
+#include <cassert>
 #include <stack>
 #include <unordered_map>
-// #include <iostream>
 
 namespace solver::exact {
 namespace detail {
@@ -14,28 +15,25 @@ inline DSaturData *Data(DataMap dataMap, Vertex v)
 
 struct Solution {
     std::stack<ColorType> maxColor;
-    std::stack<Vertex> procesed;
-    ColorType answer = std::numeric_limits<ColorType>::max();
+    ColorType answer = 5;
 };
 
 void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution &solution)
 {
-    if (selector->Empty() || solution.maxColor.top() == 3) {
-        solution.answer = std::min(solution.answer, solution.maxColor.top());
+    if (solution.maxColor.top() >= solution.answer) {
         return;
     }
-
-    // std::string ofs;
-    // for (int i = 0; i < solution.procesed.size(); ++i) {
-    //     ofs += "    ";
-    // }
+    if (selector->Empty()) {
+        solution.answer = solution.maxColor.top();
+        // std::cout << solution.answer << std::endl;
+        return;
+    }
 
     auto dataMap = boost::get(&VertexProperty::data, g);
     auto colorMap = boost::get(&VertexProperty::color, g);
 
     auto v = selector->Pop(g);
-    // std::cout << ofs << "v=" << v + 1 << ' ';
-    solution.procesed.push(v);
+    auto vNeighboursCache = Data(dataMap, v)->neighbourColors;
 
     for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
         if (Data(dataMap, u)->colored) {
@@ -43,61 +41,83 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
         }
     }
 
-    auto admissibleColors = ~Data(dataMap, v)->neighbourColors;
-    // std::cout << admissibleColors.to_string() << ' ' << solution.maxColor.top() << std::endl;
-    for (ColorType nextColor = 0; nextColor <= solution.maxColor.top() && nextColor < admissibleColors.size() && nextColor < solution.answer - 1; ++nextColor) {
-        if (admissibleColors.test(nextColor)) {
-            // std::cout << ofs << "c=" << nextColor << std::endl;
+    ColorType colors = std::min(solution.maxColor.top() + 1, solution.answer - 1);
+    auto admissibleColors = Data(dataMap, v)->F();
+
+    assert(!Data(dataMap, v)->colored);
+
+    for (ColorType nextColor = 0; nextColor < colors; ++nextColor) {
+        if (admissibleColors & (1 << nextColor)) {
             colorMap[v] = nextColor;
             Data(dataMap, v)->colored = true;
             solution.maxColor.push(std::max(solution.maxColor.top(), nextColor + 1));
 
-            // for state restoration
-            std::unordered_map<Vertex, decltype(DSaturData::neighbourColors)> cache;
-            cache.reserve(boost::out_degree(v, g));
+            using CacheData = std::pair<Vertex, decltype(DSaturData::neighbourColors)>;
+            std::stack<CacheData> cache;
 
             for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
                 if (!Data(dataMap, u)->colored) {
-                    cache[u] = Data(dataMap, u)->neighbourColors;
+                    cache.emplace(u, Data(dataMap, u)->neighbourColors);
                     Data(dataMap, u)->Mark(nextColor);
+
+                    if (std::popcount(Data(dataMap, u)->F())) {
+                        continue;
+                    }
+
+                    // Prunning if no candidates left in U'
+
+                    while (!cache.empty()) {
+                        auto [u, neighbourColors] = cache.top();
+                        cache.pop();
+
+                        Data(dataMap, u)->neighbourColors = neighbourColors;
+                    }
+
+                    Data(dataMap, v)->colored = false;
+                    solution.maxColor.pop();
+
+                    selector->Push(v);
+                    Data(dataMap, v)->neighbourColors = vNeighboursCache;
+                    return;
                 }
             }
 
             DSaturCore(g, selector, solution);
 
-            for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
-                if (cache.contains(u)) {
-                    Data(dataMap, u)->neighbourColors = cache[u];
-                }
+            while (!cache.empty()) {
+                auto [u, neighbourColors] = cache.top();
+                cache.pop();
+
+                Data(dataMap, u)->neighbourColors = neighbourColors;
             }
+
 
             Data(dataMap, v)->colored = false;
             solution.maxColor.pop();
         }
     }
 
-    solution.procesed.pop();
     selector->Push(v);
+    Data(dataMap, v)->neighbourColors = vNeighboursCache;
 }
 
 ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector)
 {
-    // prepare graph
-    ColorType maxColor = 0;
     auto const n = boost::num_vertices(g);
     
     auto dataMap = boost::get(&VertexProperty::data, g);
     auto colorMap = boost::get(&VertexProperty::color, g);
     selector->Init(n, dataMap);
 
+    Solution solution;
+
     for (auto v: boost::make_iterator_range(boost::vertices(g))) {      
-        dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g), maxColor);
+        dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g), solution.answer);
         colorMap[v] = 0;
 
         selector->Push(v);
     }
 
-    Solution solution;
     solution.maxColor.push(0);
 
     DSaturCore(g, selector, solution);

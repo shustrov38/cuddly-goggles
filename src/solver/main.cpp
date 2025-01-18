@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <optional>
+#include <cstdint>
 #include <sstream>
 #include <fstream>
 #include <thread>
@@ -13,6 +14,7 @@
 #include <atomic>
 #include <chrono>
 #include <string>
+#include <limits>
 
 #include <dimacs_coloring_io.h>
 
@@ -25,8 +27,9 @@
 namespace fs = std::filesystem;
 
 struct Parameters {
-    solver::Config config;
+    std::chrono::seconds timeLimit { std::numeric_limits<int64_t>::max() };
     std::optional<fs::path> inputPath { std::nullopt };
+    solver::Config config;
 };
 
 namespace po = boost::program_options;
@@ -45,7 +48,8 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
             " DSATUR_SEWEL,"
 
             " BNB_DSATUR,"
-            " BNB_DSATUR_SEWELL.");
+            " BNB_DSATUR_SEWELL.")
+        ("time-limit,t", po::value<int64_t>(), "Time limit");
 
     po::variables_map vm;
     try {
@@ -63,6 +67,11 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
 
     if (vm.contains("input")) {
         params.inputPath = vm["input"].as<fs::path>();
+    }
+
+
+    if (vm.contains("time-limit")) {
+        params.timeLimit = std::chrono::seconds(vm["time-limit"].as<int64_t>());
     }
 
     try {
@@ -133,7 +142,7 @@ int32_t main(int32_t argc, char **argv)
             prev = now;
 
             boost::timer::cpu_times times = jobTimer.elapsed();
-            std::cout << "Running solver... " << boost::timer::format(times, 5, "%w") << 's' << std::endl;
+            std::cout << boost::timer::format(times, 5, "Running solver... %w") << 's' << std::endl;
         }
     });
 
@@ -141,8 +150,7 @@ int32_t main(int32_t argc, char **argv)
     boost::timer::cpu_timer t;
 
     auto timeLimitFunctor = [&t, &params]() {
-        std::chrono::seconds constexpr delayTime { 10 };
-        return ToSeconds(t.elapsed()) > delayTime;
+        return ToSeconds(t.elapsed()) > params.timeLimit;
     };
 
     if (params.config < solver::__DSATUR_BOUND) {
@@ -153,7 +161,7 @@ int32_t main(int32_t argc, char **argv)
 
     isJobDone = true;
     boost::timer::cpu_times times = t.elapsed();
-    std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;
+    std::cout << boost::timer::format(times, 5, "Elapsed time: %w") << 's' << std::endl;
 
     timerThread.join();
 

@@ -1,26 +1,26 @@
-#include <atomic>
 #include <boost/program_options.hpp>
 
 #include <boost/timer/timer.hpp>
 
-#include <chrono>
 #include <filesystem>
+#include <stdexcept>
 #include <iostream>
 #include <optional>
 #include <sstream>
 #include <fstream>
 #include <thread>
 #include <memory>
-
-#include <dimacs_coloring_io.h>
-#include <stdexcept>
+#include <atomic>
+#include <chrono>
 #include <string>
 
-#include "config.h"
-#include "graph.h"
+#include <dimacs_coloring_io.h>
+
 #include "heuristics/dsatur.h"
 #include "exact/dsatur.h"
 #include "coloring.h"
+#include "config.h"
+#include "graph.h"
 
 namespace fs = std::filesystem;
 
@@ -85,6 +85,13 @@ std::unique_ptr<std::istream> CreateIstream(std::string&& source, bool fromFile)
     return std::make_unique<std::stringstream>(source);
 }
 
+auto ToSeconds(boost::timer::cpu_times const& times)
+{
+    auto nanoseconds = std::chrono::nanoseconds(times.wall);
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(nanoseconds);
+    return seconds;
+}
+
 int32_t main(int32_t argc, char **argv)
 {
     Parameters params;
@@ -132,24 +139,35 @@ int32_t main(int32_t argc, char **argv)
 
     solver::ColorType ncolors;
     boost::timer::cpu_timer t;
+
+    auto timeLimitFunctor = [&t, &params]() {
+        std::chrono::seconds constexpr delayTime { 10 };
+        return ToSeconds(t.elapsed()) > delayTime;
+    };
+
     if (params.config < solver::__DSATUR_BOUND) {
-        ncolors = solver::heuristics::DSatur(g, params.config);
+        ncolors = solver::heuristics::DSatur(g, params.config, timeLimitFunctor);
     } else if (params.config < solver::__BNB_DSATUR_BOUND) {
         ncolors = solver::exact::DSatur(g, params.config);
     }
+
     isJobDone = true;
     boost::timer::cpu_times times = t.elapsed();
     std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;
 
     timerThread.join();
 
-    // auto status = solver::Validate(g, boost::get(&solver::VertexProperty::color, g));
-    // if (!status) {
-    //     std::cout << "Bad coloring" << std::endl;
-    //     return EXIT_FAILURE;
-    // }
+    if (ncolors == -1) {
+        std::cout << "Time limit exceeded." << std::endl;
+        return EXIT_FAILURE;
+    }
 
-    std::cout << "Found coloring N=" << ncolors << std::endl;
+    if (!solver::Validate(g, boost::get(&solver::VertexProperty::color, g))) {
+        std::cout << "Bad coloring." << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    std::cout << "Found coloring K=" << ncolors << std::endl;
 
     return EXIT_SUCCESS;
 }

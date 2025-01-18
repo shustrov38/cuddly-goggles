@@ -9,8 +9,6 @@
 #include "../config.h"
 #include "../graph.h"
 
-#include <memory>
-
 namespace solver::heuristics {
-ColorType DSatur(Graph &g, Config config);
+ColorType DSatur(Graph &g, Config config, std::function<bool()> timeLimitFunctor);
 } // namespace solver::heuristics

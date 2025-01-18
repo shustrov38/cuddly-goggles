@@ -4,7 +4,6 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 
-#include <bitset>
 #include <memory>
 
 namespace solver {
@@ -53,7 +52,7 @@ struct DSaturData {
     
     SizeType degree;
 
-    std::bitset<10> neighbourColors;
+    uint32_t neighbourColors;
 
     ColorType const& maxColor;
 
@@ -68,18 +67,18 @@ struct DSaturData {
 
     void Mark(ColorType c)
     {
-        neighbourColors.set(c);
+        neighbourColors |= (1 << c);
     }
 
     auto F() const
     {
-        return (~neighbourColors).to_ulong() & ((1 << (maxColor - 1)) - 1);
+        return (~neighbourColors) & ((1 << (maxColor - 1)) - 1);
     }
 
     ColorType ColorMex() const
     {
         ColorType c = 0;
-        while (neighbourColors.test(c) && c < static_cast<ColorType>(neighbourColors.size())) {
+        while ((neighbourColors & (1 << c)) && c < maxColor) {
             ++c;
         }
         return c;
@@ -87,7 +86,7 @@ struct DSaturData {
 
     size_t Saturation() const noexcept
     {
-        return neighbourColors.count();
+        return std::popcount(neighbourColors);
     }
 };
 } // namespace solver

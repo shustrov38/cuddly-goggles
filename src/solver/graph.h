@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bit>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 
@@ -65,23 +64,24 @@ struct DSaturData {
     {
     }
 
-    void Mark(ColorType c)
+    void Mark(ColorType c) noexcept
     {
         neighbourColors |= (1 << c);
     }
 
-    auto F() const
+    uint32_t Filter(uint32_t val) const noexcept
     {
-        return (~neighbourColors) & ((1 << (maxColor - 1)) - 1);
+        return val & ((1u << maxColor) - 1u);
+    } 
+
+    auto F() const noexcept
+    {
+        return Filter(~neighbourColors);
     }
 
-    ColorType ColorMex() const
+    ColorType ColorMex() const noexcept
     {
-        ColorType c = 0;
-        while ((neighbourColors & (1 << c)) && c < maxColor) {
-            ++c;
-        }
-        return c;
+        return std::countr_one(Filter(neighbourColors));
     }
 
     size_t Saturation() const noexcept

@@ -1,11 +1,5 @@
 #include "dsatur.h"
 
-#include <bit>
-#include <bitset>
-#include <cassert>
-#include <stack>
-#include <unordered_map>
-
 namespace solver::exact {
 namespace detail {
 inline DSaturData *Data(DataMap dataMap, Vertex v)
@@ -14,6 +8,7 @@ inline DSaturData *Data(DataMap dataMap, Vertex v)
 }
 
 struct Solution {
+    std::vector<ColorType> coloring;
     std::stack<ColorType> maxColor;
     ColorType answer = 5;
 };
@@ -23,21 +18,26 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
     if (solution.maxColor.top() >= solution.answer) {
         return;
     }
+
     if (selector->Empty()) {
         solution.answer = solution.maxColor.top();
-        // std::cout << solution.answer << std::endl;
+
+        auto colorMap = boost::get(&VertexProperty::color, g);
+        for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+            colorMap[v] = solution.coloring[v];
+        }
+
         return;
     }
 
     auto dataMap = boost::get(&VertexProperty::data, g);
-    auto colorMap = boost::get(&VertexProperty::color, g);
 
     auto v = selector->Pop(g);
     auto vNeighboursCache = Data(dataMap, v)->neighbourColors;
 
     for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
         if (Data(dataMap, u)->colored) {
-            Data(dataMap, v)->Mark(colorMap[u]);
+            Data(dataMap, v)->Mark(solution.coloring[u]);
         }
     }
 
@@ -48,7 +48,7 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
 
     for (ColorType nextColor = 0; nextColor < colors; ++nextColor) {
         if (admissibleColors & (1 << nextColor)) {
-            colorMap[v] = nextColor;
+            solution.coloring[v] = nextColor;
             Data(dataMap, v)->colored = true;
             solution.maxColor.push(std::max(solution.maxColor.top(), nextColor + 1));
 
@@ -110,6 +110,7 @@ ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector)
     selector->Init(n, dataMap);
 
     Solution solution;
+    solution.coloring.assign(n, 0);
 
     for (auto v: boost::make_iterator_range(boost::vertices(g))) {      
         dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g), solution.answer);

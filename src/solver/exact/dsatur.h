@@ -2,6 +2,9 @@
 
 #include <boost/range/iterator_range.hpp>
 
+#include <vector>
+#include <stack>
+
 #include "../selectors/dsatur_dense_selector.h"
 #include "../selectors/dsatur_sewell_selector.h"
 

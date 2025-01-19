@@ -161,7 +161,6 @@ int32_t main(int32_t argc, char **argv)
 
     isJobDone = true;
     boost::timer::cpu_times times = t.elapsed();
-    std::cout << boost::timer::format(times, 5, "Elapsed time: %w") << 's' << std::endl;
 
     timerThread.join();
 
@@ -169,6 +168,8 @@ int32_t main(int32_t argc, char **argv)
         std::cout << "Time limit exceeded." << std::endl;
         return EXIT_FAILURE;
     }
+
+    std::cout << boost::timer::format(times, 5, "Elapsed time: %w") << 's' << std::endl;
 
     if (!solver::Validate(g, boost::get(&solver::VertexProperty::color, g))) {
         std::cout << "Bad coloring." << std::endl;

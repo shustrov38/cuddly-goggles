@@ -46,21 +46,19 @@ using DataMap = boost::property_map<Graph, DataType VertexProperty::*>::type;
 
 struct DSaturData {
     SizeType index;
+    SizeType degree;
 
     bool colored;
     
-    SizeType degree;
-
     uint32_t neighbourColors;
+    ColorType const& currentMaxColor;
 
-    ColorType const& maxColor;
-
-    explicit DSaturData(SizeType index, SizeType degree, ColorType const& maxColor)
+    explicit DSaturData(SizeType index, SizeType degree, ColorType const& currentMaxColor)
         : index(index)
-        , colored(false)
         , degree(degree)
+        , colored(false)
         , neighbourColors(0)
-        , maxColor(maxColor)
+        , currentMaxColor(currentMaxColor)
     {
     }
 
@@ -71,7 +69,7 @@ struct DSaturData {
 
     uint32_t Filter(uint32_t val) const noexcept
     {
-        return val & ((1u << maxColor) - 1u);
+        return val & ((1u << currentMaxColor) - 1u);
     } 
 
     auto F() const noexcept

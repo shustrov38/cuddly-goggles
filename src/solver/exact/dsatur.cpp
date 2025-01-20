@@ -12,6 +12,23 @@ struct Solution {
     std::stack<ColorType> maxColor;
     ColorType currentMaxColor;
     ColorType answer = 5;
+
+    void PushColor(ColorType c)
+    {
+        maxColor.push(std::max(maxColor.top(), c + 1));
+        UpdateMaxColor();
+    }
+
+    void PopColor()
+    {
+        maxColor.pop();
+        UpdateMaxColor();
+    }
+
+    void UpdateMaxColor()
+    {
+        currentMaxColor = std::min(maxColor.top() + 1, answer - 1);
+    }
 };
 
 void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution &solution)
@@ -51,8 +68,7 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
         if (admissibleColors & (1 << nextColor)) {
             solution.coloring[v] = nextColor;
             Data(dataMap, v)->colored = true;
-            solution.maxColor.push(std::max(solution.maxColor.top(), nextColor + 1));
-            solution.currentMaxColor = std::min(solution.maxColor.top() + 1, solution.answer - 1);
+            solution.PushColor(nextColor);
 
             using CacheData = std::pair<Vertex, decltype(DSaturData::neighbourColors)>;
             std::stack<CacheData> cache;
@@ -76,9 +92,8 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
                     }
 
                     Data(dataMap, v)->colored = false;
-                    solution.maxColor.pop();
-                    solution.currentMaxColor = std::min(solution.maxColor.top() + 1, solution.answer - 1);
-
+                    solution.PopColor();  
+                    
                     selector->Push(v);
                     Data(dataMap, v)->neighbourColors = vNeighboursCache;
                     return;
@@ -95,8 +110,7 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
             }
 
             Data(dataMap, v)->colored = false;
-            solution.maxColor.pop();
-            solution.currentMaxColor = std::min(solution.maxColor.top() + 1, solution.answer - 1);
+            solution.PopColor();    
         }
     }
 

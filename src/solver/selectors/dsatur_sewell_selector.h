@@ -67,17 +67,11 @@ private:
     SizeType Same(Vertex v, Graph const& g)
     {
         SizeType totalAdmissibleColors = 0;
-        for (auto u: mUncolored) {
-            if (u == v) {
+        for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
+            if (Data(u)->colored) {
                 continue;
             }
-            
-            for (auto x: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
-                if (x == u) {
-                    totalAdmissibleColors += Data(v)->F() & Data(u)->F();
-                    break;
-                }
-            }
+            totalAdmissibleColors += Data(v)->F() & Data(u)->F();
         }
         return totalAdmissibleColors;
     }

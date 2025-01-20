@@ -1,32 +1,35 @@
-#include <atomic>
 #include <boost/program_options.hpp>
 
 #include <boost/timer/timer.hpp>
 
-#include <chrono>
 #include <filesystem>
+#include <stdexcept>
 #include <iostream>
 #include <optional>
+#include <cstdint>
 #include <sstream>
 #include <fstream>
 #include <thread>
 #include <memory>
+#include <atomic>
+#include <chrono>
+#include <string>
+#include <limits>
 
 #include <dimacs_coloring_io.h>
-#include <stdexcept>
-#include <string>
 
-#include "config.h"
-#include "graph.h"
 #include "heuristics/dsatur.h"
 #include "exact/dsatur.h"
 #include "coloring.h"
+#include "config.h"
+#include "graph.h"
 
 namespace fs = std::filesystem;
 
 struct Parameters {
-    solver::Config config;
+    std::chrono::seconds timeLimit { std::numeric_limits<int64_t>::max() };
     std::optional<fs::path> inputPath { std::nullopt };
+    solver::Config config;
 };
 
 namespace po = boost::program_options;
@@ -45,7 +48,8 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
             " DSATUR_SEWEL,"
 
             " BNB_DSATUR,"
-            " BNB_DSATUR_SEWELL.");
+            " BNB_DSATUR_SEWELL.")
+        ("time-limit,t", po::value<int64_t>(), "Time limit");
 
     po::variables_map vm;
     try {
@@ -63,6 +67,11 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
 
     if (vm.contains("input")) {
         params.inputPath = vm["input"].as<fs::path>();
+    }
+
+
+    if (vm.contains("time-limit")) {
+        params.timeLimit = std::chrono::seconds(vm["time-limit"].as<int64_t>());
     }
 
     try {
@@ -83,6 +92,13 @@ std::unique_ptr<std::istream> CreateIstream(std::string&& source, bool fromFile)
         return ptr;
     }
     return std::make_unique<std::stringstream>(source);
+}
+
+auto ToSeconds(boost::timer::cpu_times const& times)
+{
+    auto nanoseconds = std::chrono::nanoseconds(times.wall);
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(nanoseconds);
+    return seconds;
 }
 
 int32_t main(int32_t argc, char **argv)
@@ -126,30 +142,41 @@ int32_t main(int32_t argc, char **argv)
             prev = now;
 
             boost::timer::cpu_times times = jobTimer.elapsed();
-            std::cout << "Running solver... " << boost::timer::format(times, 5, "%w") << 's' << std::endl;
+            std::cout << boost::timer::format(times, 5, "Running solver... %w") << 's' << std::endl;
         }
     });
 
     solver::ColorType ncolors;
     boost::timer::cpu_timer t;
+
+    auto timeLimitFunctor = [&t, &params]() {
+        return ToSeconds(t.elapsed()) > params.timeLimit;
+    };
+
     if (params.config < solver::__DSATUR_BOUND) {
-        ncolors = solver::heuristics::DSatur(g, params.config);
+        ncolors = solver::heuristics::DSatur(g, params.config, timeLimitFunctor);
     } else if (params.config < solver::__BNB_DSATUR_BOUND) {
-        ncolors = solver::exact::DSatur(g, params.config);
+        ncolors = solver::exact::DSatur(g, params.config, timeLimitFunctor);
     }
+
     isJobDone = true;
     boost::timer::cpu_times times = t.elapsed();
-    std::cout << boost::timer::format(times, 5, "%w") << 's' << std::endl;
 
     timerThread.join();
 
-    // auto status = solver::Validate(g, boost::get(&solver::VertexProperty::color, g));
-    // if (!status) {
-    //     std::cout << "Bad coloring" << std::endl;
-    //     return EXIT_FAILURE;
-    // }
+    if (ncolors == -1) {
+        std::cout << "Time limit exceeded." << std::endl;
+        return EXIT_FAILURE;
+    }
 
-    std::cout << "Found coloring N=" << ncolors << std::endl;
+    std::cout << boost::timer::format(times, 5, "Elapsed time: %w") << 's' << std::endl;
+
+    if (!solver::Validate(g, boost::get(&solver::VertexProperty::color, g))) {
+        std::cout << "Bad coloring." << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    std::cout << "Found coloring K=" << ncolors << std::endl;
 
     return EXIT_SUCCESS;
 }

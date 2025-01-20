@@ -7,7 +7,7 @@ inline DSaturData *Data(DataMap dataMap, Vertex v)
     return static_cast<DSaturData *>(dataMap[v].get());
 }
 
-ColorType DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector)
+ColorType DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, TimeLimitFuncCRef timeLimitFunctor)
 {
     ColorType maxColor = 0;
     auto const n = boost::num_vertices(g);
@@ -24,6 +24,10 @@ ColorType DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector)
     }
 
     for (SizeType _ = 0; _ < n; ++_) {
+        if (timeLimitFunctor()) {
+            return -1;
+        }
+
         auto v = selector->Pop(g);
 
         for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
@@ -50,7 +54,7 @@ ColorType DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector)
 }
 } // namespace detail
 
-ColorType DSatur(Graph &g, Config config)
+ColorType DSatur(Graph &g, Config config, TimeLimitFuncCRef timeLimitFunctor)
 {
     selectors::ICandidateSelector::Ptr selector;
     if (config == DSATUR) {
@@ -63,6 +67,6 @@ ColorType DSatur(Graph &g, Config config)
         selector = std::make_shared<selectors::SewellCandidateSelector>();
     }
 
-    return detail::DSaturCore(g, selector);
+    return detail::DSaturCore(g, selector, timeLimitFunctor);
 }
 } // namespace solver::heuristics

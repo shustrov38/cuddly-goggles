@@ -1,10 +1,9 @@
 #pragma once
 
-#include <bit>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 
-#include <bitset>
+#include <functional>
 #include <memory>
 
 namespace solver {
@@ -46,48 +45,50 @@ using ColorMap = boost::property_map<Graph, ColorType VertexProperty::*>::type;
 using DataType = decltype(VertexProperty::data);
 using DataMap = boost::property_map<Graph, DataType VertexProperty::*>::type;
 
+using TimeLimitFunc = std::function<bool()>;
+using TimeLimitFuncCRef = TimeLimitFunc const&; 
+
 struct DSaturData {
     SizeType index;
+    SizeType degree;
 
     bool colored;
     
-    SizeType degree;
+    uint32_t neighbourColors;
+    ColorType const& currentMaxColor;
 
-    std::bitset<10> neighbourColors;
-
-    ColorType const& maxColor;
-
-    explicit DSaturData(SizeType index, SizeType degree, ColorType const& maxColor)
+    explicit DSaturData(SizeType index, SizeType degree, ColorType const& currentMaxColor)
         : index(index)
-        , colored(false)
         , degree(degree)
+        , colored(false)
         , neighbourColors(0)
-        , maxColor(maxColor)
+        , currentMaxColor(currentMaxColor)
     {
     }
 
-    void Mark(ColorType c)
+    void Mark(ColorType c) noexcept
     {
-        neighbourColors.set(c);
+        neighbourColors |= (1 << c);
     }
 
-    auto F() const
+    uint32_t Filter(uint32_t val) const noexcept
     {
-        return (~neighbourColors).to_ulong() & ((1 << (maxColor - 1)) - 1);
+        return val & ((1u << currentMaxColor) - 1u);
+    } 
+
+    auto F() const noexcept
+    {
+        return Filter(~neighbourColors);
     }
 
-    ColorType ColorMex() const
+    ColorType ColorMex() const noexcept
     {
-        ColorType c = 0;
-        while (neighbourColors.test(c) && c < static_cast<ColorType>(neighbourColors.size())) {
-            ++c;
-        }
-        return c;
+        return std::countr_one(Filter(neighbourColors));
     }
 
     size_t Saturation() const noexcept
     {
-        return neighbourColors.count();
+        return std::popcount(neighbourColors);
     }
 };
 } // namespace solver

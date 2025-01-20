@@ -1,11 +1,5 @@
 #include "dsatur.h"
 
-#include <bit>
-#include <bitset>
-#include <cassert>
-#include <stack>
-#include <unordered_map>
-
 namespace solver::exact {
 namespace detail {
 inline DSaturData *Data(DataMap dataMap, Vertex v)
@@ -14,43 +8,77 @@ inline DSaturData *Data(DataMap dataMap, Vertex v)
 }
 
 struct Solution {
+    std::vector<ColorType> coloring;
     std::stack<ColorType> maxColor;
+    ColorType currentMaxColor;
     ColorType answer = 5;
+
+    void PushColor(ColorType c)
+    {
+        maxColor.push(std::max(maxColor.top(), c + 1));
+        UpdateMaxColor();
+    }
+
+    void PopColor()
+    {
+        maxColor.pop();
+        UpdateMaxColor();
+    }
+
+    void UpdateMaxColor()
+    {
+        currentMaxColor = std::min(maxColor.top() + 1, answer - 1);
+    }
 };
 
-void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution &solution)
+void DSaturCore(
+    Graph &g, selectors::ICandidateSelector::Ptr selector,
+    Solution &solution, TimeLimitFuncCRef timeLimitFunctor
+)
 {
+    if (timeLimitFunctor()) {
+        return;
+    }
+
     if (solution.maxColor.top() >= solution.answer) {
         return;
     }
+
     if (selector->Empty()) {
         solution.answer = solution.maxColor.top();
-        // std::cout << solution.answer << std::endl;
+
+        auto colorMap = boost::get(&VertexProperty::color, g);
+        for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+            colorMap[v] = solution.coloring[v];
+        }
+
         return;
     }
 
     auto dataMap = boost::get(&VertexProperty::data, g);
-    auto colorMap = boost::get(&VertexProperty::color, g);
 
     auto v = selector->Pop(g);
     auto vNeighboursCache = Data(dataMap, v)->neighbourColors;
 
     for (auto u: boost::make_iterator_range(boost::adjacent_vertices(v, g))) {
         if (Data(dataMap, u)->colored) {
-            Data(dataMap, v)->Mark(colorMap[u]);
+            Data(dataMap, v)->Mark(solution.coloring[u]);
         }
     }
 
-    ColorType colors = std::min(solution.maxColor.top() + 1, solution.answer - 1);
     auto admissibleColors = Data(dataMap, v)->F();
 
     assert(!Data(dataMap, v)->colored);
 
-    for (ColorType nextColor = 0; nextColor < colors; ++nextColor) {
+    for (ColorType nextColor = 0; nextColor < solution.currentMaxColor; ++nextColor) {
         if (admissibleColors & (1 << nextColor)) {
-            colorMap[v] = nextColor;
+            if (timeLimitFunctor()) {
+                return;
+            }
+
+            solution.coloring[v] = nextColor;
             Data(dataMap, v)->colored = true;
-            solution.maxColor.push(std::max(solution.maxColor.top(), nextColor + 1));
+            solution.PushColor(nextColor);
 
             using CacheData = std::pair<Vertex, decltype(DSaturData::neighbourColors)>;
             std::stack<CacheData> cache;
@@ -60,11 +88,11 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
                     cache.emplace(u, Data(dataMap, u)->neighbourColors);
                     Data(dataMap, u)->Mark(nextColor);
 
-                    if (std::popcount(Data(dataMap, u)->F())) {
+                    if (Data(dataMap, u)->F()) {
                         continue;
                     }
 
-                    // Prunning if no candidates left in U'
+                    // PRUNE if no colors left for vertex u in U'
 
                     while (!cache.empty()) {
                         auto [u, neighbourColors] = cache.top();
@@ -74,15 +102,15 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
                     }
 
                     Data(dataMap, v)->colored = false;
-                    solution.maxColor.pop();
-
+                    solution.PopColor();  
+                    
                     selector->Push(v);
                     Data(dataMap, v)->neighbourColors = vNeighboursCache;
                     return;
                 }
             }
 
-            DSaturCore(g, selector, solution);
+            DSaturCore(g, selector, solution, timeLimitFunctor);
 
             while (!cache.empty()) {
                 auto [u, neighbourColors] = cache.top();
@@ -91,9 +119,8 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
                 Data(dataMap, u)->neighbourColors = neighbourColors;
             }
 
-
             Data(dataMap, v)->colored = false;
-            solution.maxColor.pop();
+            solution.PopColor();    
         }
     }
 
@@ -101,7 +128,7 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
     Data(dataMap, v)->neighbourColors = vNeighboursCache;
 }
 
-ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector)
+ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector, TimeLimitFuncCRef timeLimitFunctor)
 {
     auto const n = boost::num_vertices(g);
     
@@ -110,23 +137,25 @@ ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector)
     selector->Init(n, dataMap);
 
     Solution solution;
+    solution.coloring.assign(n, 0);
 
     for (auto v: boost::make_iterator_range(boost::vertices(g))) {      
-        dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g), solution.answer);
+        dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g), solution.currentMaxColor);
         colorMap[v] = 0;
 
         selector->Push(v);
     }
 
-    solution.maxColor.push(0);
+    solution.maxColor.push(1);
+    solution.currentMaxColor = solution.maxColor.top();
 
-    DSaturCore(g, selector, solution);
+    DSaturCore(g, selector, solution, timeLimitFunctor);
 
     return solution.answer;
 }
 }
 
-ColorType DSatur(Graph &g, Config config)
+ColorType DSatur(Graph &g, Config config, TimeLimitFuncCRef timeLimitFunctor)
 {
     selectors::ICandidateSelector::Ptr selector;
     if (config == BNB_DSATUR) {
@@ -135,6 +164,6 @@ ColorType DSatur(Graph &g, Config config)
         selector = std::make_shared<selectors::SewellCandidateSelector>();
     }
 
-    return detail::BnB(g, selector);
+    return detail::BnB(g, selector, timeLimitFunctor);
 }
 } // namespace solver::exact

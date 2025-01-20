@@ -2,6 +2,7 @@
 
 #include <boost/timer/timer.hpp>
 
+#include <cstdlib>
 #include <filesystem>
 #include <stdexcept>
 #include <iostream>
@@ -22,6 +23,7 @@
 #include "exact/dsatur.h"
 #include "coloring.h"
 #include "config.h"
+#include "clique.h"
 #include "graph.h"
 
 namespace fs = std::filesystem;
@@ -126,6 +128,17 @@ int32_t main(int32_t argc, char **argv)
     
     using DimacsIO = utils::DimacsColoringIO<solver::Graph>;
     DimacsIO::Read(g, boost::get(&solver::VertexProperty::index, g), *streamPtr);
+
+    {
+        int32_t edgeIndex = 0;
+        auto edgeIndexMap = boost::get(&solver::EdgeProperty::index, g);
+        for (auto e: boost::make_iterator_range(boost::edges(g))) {
+            edgeIndexMap[e] = edgeIndex++;
+        }
+    }
+
+    auto LB = solver::FindClique(g);
+    std::cout << "Clique LB=" << LB << std::endl;
 
     std::atomic_bool isJobDone = false;
     boost::timer::cpu_timer jobTimer;

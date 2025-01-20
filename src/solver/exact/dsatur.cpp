@@ -10,6 +10,7 @@ inline DSaturData *Data(DataMap dataMap, Vertex v)
 struct Solution {
     std::vector<ColorType> coloring;
     std::stack<ColorType> maxColor;
+    ColorType currentMaxColor;
     ColorType answer = 5;
 };
 
@@ -51,6 +52,7 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
             solution.coloring[v] = nextColor;
             Data(dataMap, v)->colored = true;
             solution.maxColor.push(std::max(solution.maxColor.top(), nextColor + 1));
+            solution.currentMaxColor = std::min(solution.maxColor.top() + 1, solution.answer - 1);
 
             using CacheData = std::pair<Vertex, decltype(DSaturData::neighbourColors)>;
             std::stack<CacheData> cache;
@@ -60,11 +62,11 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
                     cache.emplace(u, Data(dataMap, u)->neighbourColors);
                     Data(dataMap, u)->Mark(nextColor);
 
-                    if (std::popcount(Data(dataMap, u)->F())) {
+                    if (Data(dataMap, u)->F()) {
                         continue;
                     }
 
-                    // Prunning if no candidates left in U'
+                    // PRUNE if no colors left for vertex u in U'
 
                     while (!cache.empty()) {
                         auto [u, neighbourColors] = cache.top();
@@ -75,6 +77,7 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
 
                     Data(dataMap, v)->colored = false;
                     solution.maxColor.pop();
+                    solution.currentMaxColor = std::min(solution.maxColor.top() + 1, solution.answer - 1);
 
                     selector->Push(v);
                     Data(dataMap, v)->neighbourColors = vNeighboursCache;
@@ -91,9 +94,9 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
                 Data(dataMap, u)->neighbourColors = neighbourColors;
             }
 
-
             Data(dataMap, v)->colored = false;
             solution.maxColor.pop();
+            solution.currentMaxColor = std::min(solution.maxColor.top() + 1, solution.answer - 1);
         }
     }
 
@@ -113,13 +116,14 @@ ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector)
     solution.coloring.assign(n, 0);
 
     for (auto v: boost::make_iterator_range(boost::vertices(g))) {      
-        dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g), solution.answer);
+        dataMap[v] = std::make_shared<DSaturData>(v, boost::out_degree(v, g), solution.currentMaxColor);
         colorMap[v] = 0;
 
         selector->Push(v);
     }
 
-    solution.maxColor.push(0);
+    solution.maxColor.push(1);
+    solution.currentMaxColor = solution.maxColor.top();
 
     DSaturCore(g, selector, solution);
 

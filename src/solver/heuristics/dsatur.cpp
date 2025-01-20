@@ -7,7 +7,7 @@ inline DSaturData *Data(DataMap dataMap, Vertex v)
     return static_cast<DSaturData *>(dataMap[v].get());
 }
 
-ColorType DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, std::function<bool()> timeLimitFunctor)
+ColorType DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, TimeLimitFuncCRef timeLimitFunctor)
 {
     ColorType maxColor = 0;
     auto const n = boost::num_vertices(g);
@@ -54,7 +54,7 @@ ColorType DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, std:
 }
 } // namespace detail
 
-ColorType DSatur(Graph &g, Config config, std::function<bool()> timeLimitFunctor)
+ColorType DSatur(Graph &g, Config config, TimeLimitFuncCRef timeLimitFunctor)
 {
     selectors::ICandidateSelector::Ptr selector;
     if (config == DSATUR) {

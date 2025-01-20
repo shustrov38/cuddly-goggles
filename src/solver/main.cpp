@@ -156,7 +156,7 @@ int32_t main(int32_t argc, char **argv)
     if (params.config < solver::__DSATUR_BOUND) {
         ncolors = solver::heuristics::DSatur(g, params.config, timeLimitFunctor);
     } else if (params.config < solver::__BNB_DSATUR_BOUND) {
-        ncolors = solver::exact::DSatur(g, params.config);
+        ncolors = solver::exact::DSatur(g, params.config, timeLimitFunctor);
     }
 
     isJobDone = true;

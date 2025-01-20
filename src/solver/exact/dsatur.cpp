@@ -31,8 +31,15 @@ struct Solution {
     }
 };
 
-void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution &solution)
+void DSaturCore(
+    Graph &g, selectors::ICandidateSelector::Ptr selector,
+    Solution &solution, TimeLimitFuncCRef timeLimitFunctor
+)
 {
+    if (timeLimitFunctor()) {
+        return;
+    }
+
     if (solution.maxColor.top() >= solution.answer) {
         return;
     }
@@ -65,6 +72,10 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
 
     for (ColorType nextColor = 0; nextColor < solution.currentMaxColor; ++nextColor) {
         if (admissibleColors & (1 << nextColor)) {
+            if (timeLimitFunctor()) {
+                return;
+            }
+
             solution.coloring[v] = nextColor;
             Data(dataMap, v)->colored = true;
             solution.PushColor(nextColor);
@@ -99,7 +110,7 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
                 }
             }
 
-            DSaturCore(g, selector, solution);
+            DSaturCore(g, selector, solution, timeLimitFunctor);
 
             while (!cache.empty()) {
                 auto [u, neighbourColors] = cache.top();
@@ -117,7 +128,7 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
     Data(dataMap, v)->neighbourColors = vNeighboursCache;
 }
 
-ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector)
+ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector, TimeLimitFuncCRef timeLimitFunctor)
 {
     auto const n = boost::num_vertices(g);
     
@@ -138,13 +149,13 @@ ColorType BnB(Graph &g, selectors::ICandidateSelector::Ptr selector)
     solution.maxColor.push(1);
     solution.currentMaxColor = solution.maxColor.top();
 
-    DSaturCore(g, selector, solution);
+    DSaturCore(g, selector, solution, timeLimitFunctor);
 
     return solution.answer;
 }
 }
 
-ColorType DSatur(Graph &g, Config config)
+ColorType DSatur(Graph &g, Config config, TimeLimitFuncCRef timeLimitFunctor)
 {
     selectors::ICandidateSelector::Ptr selector;
     if (config == BNB_DSATUR) {
@@ -153,6 +164,6 @@ ColorType DSatur(Graph &g, Config config)
         selector = std::make_shared<selectors::SewellCandidateSelector>();
     }
 
-    return detail::BnB(g, selector);
+    return detail::BnB(g, selector, timeLimitFunctor);
 }
 } // namespace solver::exact

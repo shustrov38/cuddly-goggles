@@ -3,6 +3,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 
+#include <functional>
 #include <memory>
 
 namespace solver {
@@ -43,6 +44,9 @@ using ColorMap = boost::property_map<Graph, ColorType VertexProperty::*>::type;
 
 using DataType = decltype(VertexProperty::data);
 using DataMap = boost::property_map<Graph, DataType VertexProperty::*>::type;
+
+using TimeLimitFunc = std::function<bool()>;
+using TimeLimitFuncCRef = TimeLimitFunc const&; 
 
 struct DSaturData {
     SizeType index;

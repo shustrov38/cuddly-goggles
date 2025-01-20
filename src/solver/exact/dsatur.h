@@ -12,5 +12,5 @@
 #include "../config.h"
 
 namespace solver::exact {
-ColorType DSatur(Graph &g, Config config);
+ColorType DSatur(Graph &g, Config config, TimeLimitFuncCRef timeLimitFunctor);
 } // namespace solver::exact

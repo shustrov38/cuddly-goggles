@@ -10,5 +10,5 @@
 #include "../graph.h"
 
 namespace solver::heuristics {
-ColorType DSatur(Graph &g, Config config, std::function<bool()> timeLimitFunctor);
+ColorType DSatur(Graph &g, Config config, TimeLimitFuncCRef timeLimitFunctor);
 } // namespace solver::heuristics

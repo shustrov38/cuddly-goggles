@@ -59,12 +59,11 @@ void DSaturCore(Graph &g, selectors::ICandidateSelector::Ptr selector, Solution 
         }
     }
 
-    ColorType colors = std::min(solution.maxColor.top() + 1, solution.answer - 1);
     auto admissibleColors = Data(dataMap, v)->F();
 
     assert(!Data(dataMap, v)->colored);
 
-    for (ColorType nextColor = 0; nextColor < colors; ++nextColor) {
+    for (ColorType nextColor = 0; nextColor < solution.currentMaxColor; ++nextColor) {
         if (admissibleColors & (1 << nextColor)) {
             solution.coloring[v] = nextColor;
             Data(dataMap, v)->colored = true;

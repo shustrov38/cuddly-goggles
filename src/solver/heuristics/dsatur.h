@@ -5,6 +5,7 @@
 #include "../selectors/dsatur_sparse_selector.h"
 #include "../selectors/dsatur_dense_selector.h"
 #include "../selectors/dsatur_sewell_selector.h"
+#include "../selectors/dsatur_pass_selector.h"
 
 #include "../config.h"
 #include "../graph.h"

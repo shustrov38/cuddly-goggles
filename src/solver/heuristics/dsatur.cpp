@@ -65,6 +65,8 @@ ColorType DSatur(Graph &g, Config config, TimeLimitFuncCRef timeLimitFunctor)
         selector = std::make_shared<selectors::SparseCandidateSelectorFib>();
     } else if (config == DSATUR_SEWELL) {
         selector = std::make_shared<selectors::SewellCandidateSelector>();
+    } else if (config == DSATUR_PASS) {
+        selector = std::make_shared<selectors::PassCandidateSelector>();
     }
 
     return detail::DSaturCore(g, selector, timeLimitFunctor);

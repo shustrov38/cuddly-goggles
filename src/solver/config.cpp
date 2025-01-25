@@ -18,12 +18,16 @@ std::istream &operator>>(std::istream& in, Config& config)
         config = DSATUR_FIBONACCI_HEAP;
     } else if (token == "DSATUR_SEWELL") {
         config = DSATUR_SEWELL;
+    } else if (token == "DSATUR_PASS") {
+        config = DSATUR_PASS;
 
     } else if (token == "BNB_DSATUR") {
         config = BNB_DSATUR;
     } else if (token == "BNB_DSATUR_SEWELL") {
         config = BNB_DSATUR_SEWELL;
-        
+    } else if (token == "BNB_DSATUR_PASS") {
+        config = BNB_DSATUR_PASS;
+
     } else {
         in.setstate(std::ios_base::failbit);
     }

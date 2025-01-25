@@ -4,10 +4,9 @@
 #include <boost/graph/planar_face_traversal.hpp>
 
 #include <unordered_map>
+#include <vector>
 
 #include "graph.h"
-
-#include <vector>
 
 namespace solver {
 struct CliqueFinder : public boost::planar_face_traversal_visitor
@@ -37,8 +36,10 @@ struct CliqueFinder : public boost::planar_face_traversal_visitor
 
     void end_traversal()
     {
-        for (auto [v, cnt]: containingTriangles) {
-            if (cnt == 3 && !otherFaces.contains(v)) {
+        for (auto [v, cnt]: containingTriangles) { 
+            bool oddTrianglesCount = (cnt > 1) && (cnt % 2 != 0);
+            bool noOtherFaces = !otherFaces.contains(v);
+            if (oddTrianglesCount && noOtherFaces) {
                 answer = 4;
                 return; 
             }

@@ -48,9 +48,11 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
             " DSATUR_BINARY_HEAP,"
             " DSATUR_FIBONACCI_HEAP,"
             " DSATUR_SEWEL,"
+            " DSATUR_PASS,"
 
             " BNB_DSATUR,"
-            " BNB_DSATUR_SEWELL.")
+            " BNB_DSATUR_SEWELL,"
+            " BNB_DSATUR_PASS.")
         ("time-limit,t", po::value<int64_t>(), "Time limit");
 
     po::variables_map vm;

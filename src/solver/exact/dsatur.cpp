@@ -1,5 +1,7 @@
 #include "dsatur.h"
 
+#include <iostream>
+
 namespace solver::exact {
 namespace detail {
 inline DSaturData *Data(DataMap dataMap, Vertex v)
@@ -162,6 +164,8 @@ ColorType DSatur(Graph &g, Config config, TimeLimitFuncCRef timeLimitFunctor)
         selector = std::make_shared<selectors::DenseCandidateSelector>();
     } else if (config == BNB_DSATUR_SEWELL) {
         selector = std::make_shared<selectors::SewellCandidateSelector>();
+    } else if (config == BNB_DSATUR_PASS) {
+        selector = std::make_shared<selectors::PassCandidateSelector>();
     }
 
     return detail::BnB(g, selector, timeLimitFunctor);

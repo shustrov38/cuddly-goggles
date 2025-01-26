@@ -1,7 +1,5 @@
 #include "dsatur.h"
 
-#include <iostream>
-
 namespace solver::exact {
 namespace detail {
 inline DSaturData *Data(DataMap dataMap, Vertex v)

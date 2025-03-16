@@ -1,13 +1,16 @@
+#include <boost/range/iterator_range_core.hpp>
+
 #include <boost/program_options.hpp>
 
 #include <boost/timer/timer.hpp>
 
-#include <cstdlib>
 #include <filesystem>
 #include <stdexcept>
 #include <iostream>
 #include <optional>
+#include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <sstream>
 #include <fstream>
 #include <thread>
@@ -16,6 +19,7 @@
 #include <chrono>
 #include <string>
 #include <limits>
+#include <array>
 
 #include <dimacs_coloring_io.h>
 
@@ -42,7 +46,7 @@ bool ProcessCommandLine(int32_t argc, char **argv, Parameters &params)
     desc.add_options()
         ("help,h", "Produce help message.")
         ("input,i", po::value<fs::path>()->composing(), "Path to DIMACS problem.")
-        ("config,c", po::value<solver::Config>(&params.config), 
+        ("config,c", po::value<solver::Config>(&params.config),
             "Coloring implementation. Possible values:"
             " DSATUR,"
             " DSATUR_BINARY_HEAP,"
@@ -127,7 +131,7 @@ int32_t main(int32_t argc, char **argv)
         std::cerr << "\033[31m" << "Error: " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
-    
+
     using DimacsIO = utils::DimacsColoringIO<solver::Graph>;
     DimacsIO::Read(g, boost::get(&solver::VertexProperty::index, g), *streamPtr);
 
@@ -172,6 +176,8 @@ int32_t main(int32_t argc, char **argv)
         ncolors = solver::heuristics::DSatur(g, params.config, timeLimitFunctor);
     } else if (params.config < solver::__BNB_DSATUR_BOUND) {
         ncolors = solver::exact::DSatur(g, params.config, timeLimitFunctor);
+    } else {
+        assert("We should never be here.");
     }
 
     isJobDone = true;
@@ -192,6 +198,20 @@ int32_t main(int32_t argc, char **argv)
     }
 
     std::cout << "Found coloring K=" << ncolors << std::endl;
+
+    auto colors = boost::get(&solver::VertexProperty::color, g);
+    std::array<std::set<uint64_t>, 4> colorClasses;
+    for (auto v: boost::make_iterator_range(boost::vertices(g))) {
+        auto c = colors[v];
+        colorClasses[c].emplace(v);
+    }
+
+    for (auto& cls: colorClasses) {
+        for (auto v: cls) {
+            std::cout << v << ' ';
+        }
+        std::cout << std::endl;
+    }
 
     return EXIT_SUCCESS;
 }

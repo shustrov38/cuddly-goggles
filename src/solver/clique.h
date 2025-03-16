@@ -4,6 +4,7 @@
 #include <boost/graph/planar_face_traversal.hpp>
 
 #include <unordered_map>
+#include <iostream>
 #include <vector>
 
 #include "graph.h"
@@ -67,6 +68,7 @@ inline int32_t FindClique(Graph const& g)
     );
 
     if (!isPlanar) {
+        std::cout << "[WARNING] not a planar graph" << std::endl;
         return -1;
     }
 

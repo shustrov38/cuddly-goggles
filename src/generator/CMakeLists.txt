@@ -16,4 +16,5 @@ target_link_libraries(generator PRIVATE
     Boost::geometry
     Boost::graph
     Boost::timer
+    tqdm-cpp
 )

@@ -3,6 +3,7 @@
 
 #include <boost/program_options.hpp>
 
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <ostream>
@@ -10,7 +11,9 @@
 #include <vector>
 
 #include <dimacs_coloring_io.h>
+#include "boost/program_options/variables_map.hpp"
 #include "generator.h"
+#include "special.h"
 
 namespace po = boost::program_options;
 namespace fs = std::filesystem;
@@ -19,15 +22,37 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
 {
     po::options_description desc("Options");
     desc.add_options()
-        ("help,h", "Produce help message.")
-        ("num-vertices,N", po::value<size_t>(&params.numVertices)->required(), "Number of vertices in graph.")
-        ("remove-prop,p", po::value<double>(&params.removePropability)->default_value(0.5), "Propability of removing edge from graph.")
-        ("connectivity,c", "Make graph connected (1 connected component).")
-        ("export-svg", po::value<fs::path>()->composing(), "Path to SVG result.");
+        ("help", 
+            "Show help message.")
+        ("default-mode,d", po::bool_switch(&params.isDefaultMode),
+            "Use default mode (default).")
+        ("huge-mode,g", "Use huge graph mode.");
+    auto descCopy1 = desc;
+    auto descCopy2 = desc;
+
+    po::options_description defaultMode("Default mode options");
+    defaultMode.add_options()
+        ("num-vertices,N", po::value<size_t>(&params.numVertices)->required(), 
+            "Number of vertices in graph.")
+        ("connectivity,c", po::bool_switch(&params.connectivity), 
+            "Ensure graph connectivity.")
+        ("remove-prob,r", po::value<double>(&params.removeProbability)->default_value(0.5), 
+            "Edge removal probability [0.0;1.0].")
+        ("export-svg", po::value<fs::path>()->composing(), 
+            "SVG output file path.");
+
+    po::options_description hugeGraphMode("Huge graph mode options");
+    hugeGraphMode.add_options()
+        ("result-path,o", po::value<std::string>()->required(), 
+            "Result file path.")
+        ("width,w", po::value<uint32_t>(&params.width)->required(), 
+            "Image width.")
+        ("height,h", po::value<uint32_t>(&params.height)->required(), 
+            "Image height.");
 
     po::variables_map vm;
     try {
-        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::store(po::parse_command_line(argc, argv, desc.add(defaultMode).add(hugeGraphMode)), vm);
     } catch(std::exception& e) {
         std::cerr << "\033[31m" << "Error: " << e.what() << "\033[0m" << std::endl;
         return false;
@@ -39,19 +64,34 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
         return false;
     }
 
-    if (vm.contains("connectivity")) {
-        params.connectivity = true;
-    }
+    if (vm.contains("huge-mode")) {
+        params.isDefaultMode = false;
+        po::variables_map vmHugeGraph;
+        
+        po::store(po::parse_command_line(argc, argv, descCopy1.add(hugeGraphMode)), vmHugeGraph);
+   
+        try {
+            po::notify(vmHugeGraph);
+        } catch(std::exception& e) {
+            std::cerr << "\033[31m" << "Error: " << e.what() << "\033[0m" << std::endl;
+            return false;
+        }
 
-    if (vm.contains("export-svg")) {
-        params.svgPath = vm["export-svg"].as<fs::path>();
-    }
+    } else {
+        params.isDefaultMode = true;
+        po::variables_map vmDefault;
+        po::store(po::parse_command_line(argc, argv, descCopy2.add(defaultMode)), vmDefault);
 
-    try {
-        po::notify(vm);
-    } catch(std::exception& e) {
-        std::cerr << "\033[31m" << "Error: " << e.what() << "\033[0m" << std::endl;
-        return false;
+        if (vm.contains("export-svg")) {
+            params.svgPath = vm["export-svg"].as<fs::path>();
+        }
+
+        try {
+            po::notify(vmDefault);
+        } catch(std::exception& e) {
+            std::cerr << "\033[31m" << "Error: " << e.what() << "\033[0m" << std::endl;
+            return false;
+        }
     }
     return true;
 }
@@ -131,6 +171,12 @@ int32_t main(int32_t argc, char **argv)
     generator::Parameters params;
     if (!ProcessCommandLine(argc, argv, params)) {
         return EXIT_FAILURE;
+    }
+
+    if (!params.isDefaultMode) {
+        generator::HugeGraphGenerator gen(params.resultPath, params.width, params.height);
+        gen.Generate();
+        return EXIT_SUCCESS;
     }
 
     generator::Generator gen;

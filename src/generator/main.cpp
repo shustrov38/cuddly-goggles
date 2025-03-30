@@ -29,7 +29,7 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
     try {
         po::store(po::parse_command_line(argc, argv, desc), vm);
     } catch(std::exception& e) {
-        std::cerr << "\033[31m" << "Error: " << e.what() << std::endl;
+        std::cerr << "\033[31m" << "Error: " << e.what() << "\033[0m" << std::endl;
         return false;
     }
 
@@ -50,7 +50,7 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
     try {
         po::notify(vm);
     } catch(std::exception& e) {
-        std::cerr << "\033[31m" << "Error: " << e.what() << std::endl;
+        std::cerr << "\033[31m" << "Error: " << e.what() << "\033[0m" << std::endl;
         return false;
     }
     return true;

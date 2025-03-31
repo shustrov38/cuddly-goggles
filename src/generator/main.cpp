@@ -43,7 +43,7 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
 
     po::options_description hugeGraphMode("Huge graph mode options");
     hugeGraphMode.add_options()
-        ("result-path,o", po::value<std::string>()->required(), 
+        ("result-path,o", po::value<fs::path>()->composing()->required(), 
             "Result file path.")
         ("width,w", po::value<uint32_t>(&params.width)->required(), 
             "Image width.")
@@ -76,6 +76,8 @@ bool ProcessCommandLine(int32_t argc, char **argv, generator::Parameters &params
             std::cerr << "\033[31m" << "Error: " << e.what() << "\033[0m" << std::endl;
             return false;
         }
+
+        params.resultPath = vm["result-path"].as<fs::path>();
 
     } else {
         params.isDefaultMode = true;

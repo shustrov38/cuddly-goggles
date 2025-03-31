@@ -117,7 +117,7 @@ void Generator::Generate(Parameters const& params)
     Points points(params.numVertices);
     GenerateRandomPoints(points);
     BuildGraphUsingVoronoiDiagram(points);
-    RemoveEdgesWithProp(params.removePropability, params.connectivity);
+    RemoveEdgesWithProp(params.removeProbability, params.connectivity);
 
     // remained edge indexing for further planar face traversal 
     auto edgeIndexMap = boost::get(&EdgeProperty::index, mGraph);

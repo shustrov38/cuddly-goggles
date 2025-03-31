@@ -12,10 +12,9 @@
 
 #include <boost/polygon/voronoi.hpp>
 
-#include <filesystem>
-#include <optional>
-
 #include <random.h>
+
+#include "parameters.h"
 
 struct Point {
     typedef int64_t Type;
@@ -50,15 +49,6 @@ struct point_traits<Point> {
 } // namespace boost::polygon
 
 namespace generator {
-struct Parameters {
-    size_t numVertices { 0 };
-    
-    bool connectivity { false };
-    double removePropability { 0.5 };
-
-    std::optional<std::filesystem::path> svgPath { std::nullopt };
-};
-
 class Generator {
 public:
     using Points = std::vector<Point>;

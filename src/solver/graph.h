@@ -23,6 +23,7 @@ struct VertexProperty {
 };
 
 struct EdgeProperty {
+    int32_t index;
 };
 
 using Graph = boost::adjacency_list<

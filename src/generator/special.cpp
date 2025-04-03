@@ -48,7 +48,7 @@ void HugeGraphGenerator::Generate()
 
     for (uint32_t j = 1; j < mHeight - 1; ++j) {
         WriteVertexMetadataOffset(GetV(0, j));
-        Write(static_cast<uint8_t>(8), 
+        Write(static_cast<uint8_t>(5), 
             GetV(0, j - 1),
             GetV(1, j - 1),
             GetV(1, j),

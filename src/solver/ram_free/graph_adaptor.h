@@ -8,14 +8,15 @@
 #include <fstream>
 #include <vector>
 
-namespace solver::adaptor {
+namespace solver::ramfree {
 class GraphAdaptor {
 public:
     using VertexT = uint32_t;
     using OffsetT = uint64_t;
 
     explicit GraphAdaptor(std::filesystem::path &path)
-        : mStream(path, std::ios::binary)
+        : mPath(path)
+        , mStream(mPath, std::ios::binary)
     {
         char version[8];
         mStream.read(version, sizeof(version));
@@ -28,6 +29,23 @@ public:
 
         mVertexSectionStart = mStream.tellg();
         mMetadataSectionStart = mVertexSectionStart + mNumVertices * sizeof(OffsetT);
+    }
+
+    GraphAdaptor(GraphAdaptor const& other)
+        : mPath(other.mPath)
+    {
+        mStream.open(mPath, std::ios::binary);
+        
+        mNumVertices = other.mNumVertices;
+        mNumEdges = other.mNumEdges;
+
+        mVertexSectionStart = other.mVertexSectionStart;
+        mMetadataSectionStart = other.mMetadataSectionStart;
+    }
+
+    inline VertexT GetNumVertices() const noexcept
+    {
+        return mNumVertices;
     }
 
     std::vector<VertexT> const& GetNeighhbours(VertexT vertex);
@@ -44,6 +62,7 @@ private:
 
     static const char *MAGIC_VER_1_0;
     
+    std::filesystem::path const mPath;
     std::ifstream mStream;
 
     VertexT mNumVertices;
@@ -52,4 +71,4 @@ private:
     OffsetT mVertexSectionStart;
     OffsetT mMetadataSectionStart;
 };
-} // namespace solver::adaptor
+} // namespace solver::ramfree

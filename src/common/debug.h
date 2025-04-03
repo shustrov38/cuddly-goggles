@@ -17,7 +17,7 @@
     }
 
     #define _DEBUG(x) do { std::cerr << #x << " = " << (x) << std::endl; } while(0)
-    #define _DEBUG_HEX(x) do { std::cerr << #x << " = " << std::hex << (x) << std::endl; } while(0)
+    #define _DEBUG_HEX(x) do { std::cerr << #x << " = " << std::hex << (x)  << std::dec << std::endl; } while(0)
 #else
     #define _DEBUG(x) {}
     #define _DEBUG_HEX(x) {}

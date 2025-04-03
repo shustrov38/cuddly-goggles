@@ -30,6 +30,8 @@
 #include "clique.h"
 #include "graph.h"
 
+#include "ram_free/dsatur.h"
+
 namespace fs = std::filesystem;
 
 struct Parameters {
@@ -111,6 +113,18 @@ auto ToSeconds(boost::timer::cpu_times const& times)
 
 int32_t main(int32_t argc, char **argv)
 {
+    if (argc < 2) {
+        std::cout << "Usage: " << argv[0] << " trace" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    std::filesystem::path path(argv[1]);
+    solver::ramfree::GraphAdaptor ada(path);
+
+    solver::ramfree::DSatur(ada);
+
+    return EXIT_SUCCESS;
+
     Parameters params;
     if (!ProcessCommandLine(argc, argv, params)) {
         return EXIT_FAILURE;

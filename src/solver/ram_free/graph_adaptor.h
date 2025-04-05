@@ -3,72 +3,187 @@
 #include <cstdint>
 #include <filesystem>
 #include <stdexcept>
+#include <unistd.h>
 #include <iostream>
 #include <cstring>
-#include <fstream>
+#include <fcntl.h>
+#include <atomic>
 #include <vector>
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+
+#include <omp.h>
+
+#include <tqdm.hpp>
+
 namespace solver::ramfree {
+class MyTQDM
+{
+public:
+    MyTQDM(tq::index num_iters)
+        : num_iters_(num_iters)
+    {}
+
+    MyTQDM(const MyTQDM&) = delete;
+    MyTQDM(MyTQDM&&) = delete;
+    MyTQDM& operator=(MyTQDM&&) = delete;
+    MyTQDM& operator=(const MyTQDM&) = delete;
+    ~MyTQDM() = default;
+
+    void set_ostream(std::ostream& os) { bar_.set_ostream(os); }
+    void set_prefix(std::string s) { bar_.set_prefix(std::move(s)); }
+    void set_bar_size(int size) { bar_.set_bar_size(size); }
+    void set_min_update_time(double time) { bar_.set_min_update_time(time); }
+
+    void manually_set_progress(double to)
+    {
+        tq::clamp(to, 0, 1);
+        iters_done_ = std::round(to*num_iters_);
+        bar_.update(calc_progress());
+    }
+
+private:
+    double calc_progress() const
+    {
+        double denominator = num_iters_;
+        if (num_iters_ == 0) denominator += 1e-9;
+        return iters_done_/denominator;
+    }
+
+    tq::index num_iters_{0};
+    tq::index iters_done_{0};
+    tq::progress_bar bar_;
+};
+
+template <class Info>
+concept NodeInfo = requires(Info info) {
+    { info.degree };
+    { info.neighbours };
+};
+
+template <NodeInfo Node>
 class GraphAdaptor {
 public:
-    using VertexT = uint32_t;
-    using OffsetT = uint64_t;
-
-    explicit GraphAdaptor(std::filesystem::path &path)
-        : mPath(path)
-        , mStream(mPath, std::ios::binary)
+    explicit GraphAdaptor(std::filesystem::path const& path)
     {
-        char version[8];
-        mStream.read(version, sizeof(version));
-
-        if (std::memcmp(MAGIC_VER_1_0, version, sizeof(version))) {
-            throw std::runtime_error("Provided trace have unknown format.");
+        int fd = open64(path.c_str(), O_RDONLY | O_NONBLOCK);
+        if(fd == -1) {
+            throw std::runtime_error("Cannot open file");
         }
 
-        Read(mNumVertices, mNumEdges);
+        struct stat st;
+        fstat(fd, &st);
+        size_t fileSize = st.st_size;
 
-        mVertexSectionStart = mStream.tellg();
-        mMetadataSectionStart = mVertexSectionStart + mNumVertices * sizeof(OffsetT);
-    }
+        void* mapped = mmap(nullptr, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
+        if(mapped == MAP_FAILED) {
+            throw std::runtime_error("mmap failed");
+        }
+        close(fd);
 
-    GraphAdaptor(GraphAdaptor const& other)
-        : mPath(other.mPath)
-    {
-        mStream.open(mPath, std::ios::binary);
+        const uint8_t* data = static_cast<const uint8_t*>(mapped);
+
+        const char *version = reinterpret_cast<const char *>(data);
+        data += 8;
+
+        if (std::memcmp(MAGIC_VER_1_0, version, 8)) {
+            throw std::runtime_error("provided trace have unknown format");
+        }
+
+        mNumVertices = *reinterpret_cast<const uint32_t*>(data);
+        data += 4;
+        mNumEdges = *reinterpret_cast<const uint64_t*>(data);
+        data += 8;
+
+        const uint64_t* offsets = reinterpret_cast<const uint64_t*>(data);
+        data += static_cast<uint64_t>(mNumVertices) * sizeof(uint64_t);
+
+        mVertices.resize(mNumVertices);
+        constexpr uint32_t chunkSize = 100;
+
+        auto tqdm = MyTQDM(mNumVertices);
+        tqdm.set_prefix("Reading graph    ");
+
+        std::atomic_uint32_t progress = 0;
+
+        #pragma omp parallel
+        #pragma omp single
+        {
+            #pragma omp task
+            {
+                uint32_t lastProgress = -1;
+                tqdm.manually_set_progress(0);
+
+                while (progress < mNumVertices) {
+                    if (progress != lastProgress) {
+                        tqdm.manually_set_progress(static_cast<double>(progress) / mNumVertices);
+                        lastProgress = progress;
+                    }
+                    #pragma omp taskyield
+                }
+
+                tqdm.manually_set_progress(1);
+                std::cout << std::endl;
+            }
+
+            #pragma omp taskgroup
+            {
+                for(uint32_t v = 0; v < mNumVertices; v += chunkSize) {
+                    #pragma omp task firstprivate(v)
+                    {
+                        const uint32_t end = std::min(v + chunkSize, mNumVertices);
+                        for(uint32_t i = v; i < end; ++i) {
+                            const uint8_t* meta = static_cast<const uint8_t*>(mapped) + offsets[i];
+
+                            mVertices[i].degree = *meta++;
+                            const uint32_t* neighbors = reinterpret_cast<const uint32_t*>(meta);
+                            std::memcpy(mVertices[i].neighbours, neighbors, mVertices[i].degree * sizeof(uint32_t));
+                        }
+                        progress += end - v;
+                    }
+                }
+            }
+        }
+
+        // #pragma omp parallel for schedule(dynamic, 100)
+        // for (uint32_t v = 0; v < mNumVertices; ++v) {
+        //     const uint8_t* meta = static_cast<const uint8_t*>(mapped) + offsets[v];
         
-        mNumVertices = other.mNumVertices;
-        mNumEdges = other.mNumEdges;
+        //     mVertices[v].degree = *meta++;            
+        //     const uint32_t* neighbors = reinterpret_cast<const uint32_t*>(meta);
+        //     std::memcpy(mVertices[v].neighbours, neighbors, mVertices[v].degree * sizeof(uint32_t));
+        // }
 
-        mVertexSectionStart = other.mVertexSectionStart;
-        mMetadataSectionStart = other.mMetadataSectionStart;
+        munmap(mapped, fileSize);
     }
 
-    inline VertexT GetNumVertices() const noexcept
+    inline uint64_t GetNumEdges() const noexcept
+    {
+        return  mNumEdges;
+    }
+
+    inline uint32_t GetNumVertices() const noexcept
     {
         return mNumVertices;
     }
 
-    std::vector<VertexT> const& GetNeighhbours(VertexT vertex);
-
-private:
-    template <typename... T>
-    void Read(T &... value)
+    Node const& GetVertex(uint32_t vertex) const
     {
-        (mStream.read(reinterpret_cast<char *>(&value), sizeof(value)), ...);
+        return mVertices[vertex];
     }
 
-    OffsetT ReadMetadataOffset(VertexT vertex);
-    std::vector<VertexT> const& ReadMetadata(OffsetT offset);
+    Node &GetVertex(uint32_t vertex)
+    {
+        return mVertices[vertex];
+    }
 
-    static const char *MAGIC_VER_1_0;
-    
-    std::filesystem::path const mPath;
-    std::ifstream mStream;
+private:
+    static constexpr char MAGIC_VER_1_0[] = "DSHUV1.0";
 
-    VertexT mNumVertices;
+    std::vector<Node> mVertices;
+
+    uint32_t mNumVertices;
     uint64_t mNumEdges;
-
-    OffsetT mVertexSectionStart;
-    OffsetT mMetadataSectionStart;
 };
 } // namespace solver::ramfree

@@ -119,9 +119,7 @@ int32_t main(int32_t argc, char **argv)
     }
 
     std::filesystem::path path(argv[1]);
-    solver::ramfree::GraphAdaptor ada(path);
-
-    solver::ramfree::DSatur(ada);
+    solver::ramfree::DSatur(path);
 
     return EXIT_SUCCESS;
 

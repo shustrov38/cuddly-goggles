@@ -1,7 +1,6 @@
 #include "dsatur.h"
 
 #include <boost/heap/fibonacci_heap.hpp>
-#include <boost/pool/pool_alloc.hpp>
 
 #include <cstdint>
 #include <cstring>
@@ -67,10 +66,7 @@ static_assert(sizeof(MexBitSet) == 1);
 } // namespace detail
 
 template <typename T, typename C>
-using HeapT = boost::heap::fibonacci_heap<
-    T, boost::heap::compare<C>,
-    boost::heap::allocator<boost::pool_allocator<T>>
->;
+using HeapT = boost::heap::fibonacci_heap<T, boost::heap::compare<C>>;
 
 struct Node {
     uint32_t vertex;
@@ -82,7 +78,6 @@ struct Node {
     uint8_t used { false };
 
     uint32_t neighbours[8];
-
 
     Node() = default;
 
@@ -169,6 +164,6 @@ void DSatur(std::filesystem::path const& path)
         std::cout << "Bad coloring!" << std::endl;
     } else {
         std::cout << "Coloring with K=" << (int)maxColor+1 << std::endl;
-    }
+    }    
 }
 } // namespace solver::ramfree

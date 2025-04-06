@@ -19,7 +19,6 @@ target_link_libraries(solver PRIVATE
     Boost::graph
     Boost::heap
     Boost::timer
-    Boost::pool
     tqdm-cpp
     OpenMP::OpenMP_CXX
 )

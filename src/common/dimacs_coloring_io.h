@@ -16,11 +16,11 @@ class DimacsColoringIO {
 public:
     using GraphTraits = boost::graph_traits<VertexListGraph>;
     
-    using Vertex = GraphTraits::vertex_descriptor;
-    using VertexSizeType = GraphTraits::vertices_size_type;
+    using Vertex = typename GraphTraits::vertex_descriptor;
+    using VertexSizeType = typename GraphTraits::vertices_size_type;
     
-    using Edge = GraphTraits::edge_descriptor;
-    using EdgeSizeType = GraphTraits::edges_size_type;
+    using Edge = typename GraphTraits::edge_descriptor;
+    using EdgeSizeType = typename GraphTraits::edges_size_type;
 
     struct Comments {
         static void Description(std::ostream &out, VertexListGraph const&) noexcept

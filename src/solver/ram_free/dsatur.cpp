@@ -1,6 +1,9 @@
 #include "dsatur.h"
+#include "boost/heap/policies.hpp"
 
 #include <boost/heap/fibonacci_heap.hpp>
+#include <boost/heap/d_ary_heap.hpp>
+#include <boost/pool/pool_alloc.hpp>
 
 #include <cstdint>
 #include <cstring>
@@ -66,7 +69,20 @@ static_assert(sizeof(MexBitSet) == 1);
 } // namespace detail
 
 template <typename T, typename C>
-using HeapT = boost::heap::fibonacci_heap<T, boost::heap::compare<C>>;
+using HeapT = boost::heap::fibonacci_heap<
+    T,
+    boost::heap::compare<C>,
+    boost::heap::allocator<boost::fast_pool_allocator<T>>
+>;
+
+// template <typename T, typename C>
+// using HeapT = boost::heap::d_ary_heap<
+//     T,
+//     boost::heap::compare<C>,
+//     boost::heap::arity<8>,
+//     boost::heap::mutable_<true>,
+//     boost::heap::allocator<boost::fast_pool_allocator<T>>
+// >;
 
 struct Node {
     uint32_t vertex;

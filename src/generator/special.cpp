@@ -18,24 +18,26 @@ void HugeGraphGenerator::Generate()
     //      (w-2)*(h-2) inside  - 8 edges
     //      4           corners - 3 edges
     //      2*(w+h-4)   border  - 5 edges
-    uint64_t const numEdges = 8 * (mWidth - 2) * (mHeight - 2)
+    uint64_t const numEdges = 8 * static_cast<uint64_t>(mWidth - 2) * static_cast<uint64_t>(mHeight - 2)
                             + 3 * 4
-                            + 5 * 2 * (mWidth + mHeight - 4);
+                            + 5 * 2 * static_cast<uint64_t>(mWidth + mHeight - 4);
     
     Write(numVertices, numEdges);
     std::cerr << "Num vertices : " << numVertices << std::endl;
     std::cerr << "Num edges    : " << numEdges << std::endl;
     
     uint64_t const resultSizeInBytes = mMetadataSectionStart
-                                     + (sizeof(uint8_t) + 8 * sizeof(uint32_t)) * (mWidth - 2) * (mHeight - 2)
+                                     + (sizeof(uint8_t) + 8 * sizeof(uint32_t)) * static_cast<uint64_t>(mWidth - 2) * static_cast<uint64_t>(mHeight - 2)
                                      + (sizeof(uint8_t) + 3 * sizeof(uint32_t)) * 4
-                                     + (sizeof(uint8_t) + 5 * sizeof(uint32_t)) * 2 * (mWidth + mHeight - 4);
+                                     + (sizeof(uint8_t) + 5 * sizeof(uint32_t)) * 2 * static_cast<uint64_t>(mWidth + mHeight - 4);
     std::cerr << "Result size  : " << utils::BytesToHumanReadable(resultSizeInBytes) << std::endl; 
 
     uint64_t const zero = 0;
     for (uint32_t i = 0; i < numVertices; ++i) {
         Write(zero);
     }
+
+    std::cout << mStream.tellp() << std::endl;
 
     auto tqdm = tq::trange(mWidth);
 

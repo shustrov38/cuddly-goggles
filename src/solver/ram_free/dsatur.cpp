@@ -1,5 +1,6 @@
 #include "dsatur.h"
 #include "boost/heap/policies.hpp"
+#include "graph_adaptor.h"
 
 #include <boost/heap/fibonacci_heap.hpp>
 #include <boost/heap/d_ary_heap.hpp>
@@ -85,22 +86,6 @@ using HeapT = boost::heap::fibonacci_heap<
 // >;
 
 struct Node {
-    uint32_t vertex;
-    uint8_t degree;
-
-    detail::MexBitSet bitset {};
-
-    uint8_t color = -1;
-    uint8_t used { false };
-
-    uint32_t neighbours[8];
-
-    Node() = default;
-
-    explicit Node(uint32_t vertex, uint8_t degree)
-        : vertex(vertex), degree(degree)
-    {}
-
     struct CompareInfo {
         bool operator()(const Node *lhs, const Node *rhs) const
         {
@@ -113,65 +98,102 @@ struct Node {
             return lhs->vertex > rhs->vertex;
         }
     };
-};
-static_assert(sizeof(Node) == 40);
 
-using Heap = HeapT<const Node *, Node::CompareInfo>;
-using Handle = typename Heap::handle_type;
+    using Heap = HeapT<const Node *, Node::CompareInfo>;
+    using Handle = typename Heap::handle_type;
+
+    uint32_t vertex;
+    uint8_t degree;
+
+    detail::MexBitSet bitset {};
+
+    uint8_t color = -1;
+    uint8_t used { false };
+
+    uint32_t neighbours[8];
+
+    Handle handle;
+
+    Node() = default;
+
+    explicit Node(uint32_t vertex, uint8_t degree)
+        : vertex(vertex), degree(degree)
+    {}
+};
+static_assert(sizeof(Node) == 48);
 
 void DSatur(std::filesystem::path const& path)
 {
     solver::ramfree::GraphAdaptor<Node> ada(path);
 
     uint32_t const numVertices = ada.GetNumVertices();
+    Node::Heap heap;
 
-    std::vector<Handle> handles(numVertices);
-    Heap heap;
+    constexpr uint32_t batchSize = 100;
+    double progress = 0;
 
-    auto tqdm_heap = tq::trange(numVertices);
+    auto tqdm_heap = MyTQDM(numVertices);
     tqdm_heap.set_prefix("Loading heap     ");
-    for (uint32_t v: tqdm_heap) {
-        auto &vnode = ada.GetVertex(v);
-        vnode.vertex = v;
-        handles[v] = heap.push(&vnode);
+    progress = 0;
+    for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
+        uint32_t end = std::min(batch + batchSize, numVertices);
+        for (uint32_t v = batch; v < end; ++v) {
+            auto &vnode = ada.GetVertex(v);
+            vnode.vertex = v;
+            vnode.handle = heap.push(&vnode);
+        }
+        progress += (end - batch);
+        tqdm_heap.manually_set_progress(progress / numVertices);
     }
     std::cout << std::endl;
 
     uint8_t maxColor = 0;
 
-    auto tqdm_algo = tq::trange(numVertices);
+    auto tqdm_algo = MyTQDM(numVertices);
     tqdm_algo.set_prefix("Colored vertices ");
-    for (uint32_t _: tqdm_algo) {
-        uint32_t u = heap.top()->vertex;
-        heap.pop();
-        
-        auto &unode = ada.GetVertex(u);
-        unode.color = unode.bitset.Mex();
-        maxColor = std::max(maxColor, unode.color);
-        unode.used = true;
-        
-        for (uint8_t i = 0; i < unode.degree; ++i) {
-            uint32_t v = unode.neighbours[i];
-            auto &vnode = ada.GetVertex(v);
-            if (vnode.used) continue;       
-            vnode.bitset.AddMexBit(unode.color);
-            heap.increase(handles[v]);
+    progress = 0;
+    for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
+        uint32_t end = std::min(batch + batchSize, numVertices);
+        for (uint32_t _ = batch; _ < end; ++_) {
+            uint32_t u = heap.top()->vertex;
+            heap.pop();
+            
+            auto &unode = ada.GetVertex(u);
+            unode.color = unode.bitset.Mex();
+            maxColor = std::max(maxColor, unode.color);
+            unode.used = true;
+            
+            for (uint8_t i = 0; i < unode.degree; ++i) {
+                uint32_t v = unode.neighbours[i];
+                auto &vnode = ada.GetVertex(v);
+                if (vnode.used) continue;       
+                vnode.bitset.AddMexBit(unode.color);
+                heap.increase(vnode.handle);
+            }
         }
+        progress += (end - batch);
+        tqdm_algo.manually_set_progress(progress / numVertices);
     }
     std::cout << std::endl;
 
-    auto tqdm_vali = tq::trange(numVertices);
+    auto tqdm_vali = MyTQDM(numVertices);
     tqdm_vali.set_prefix("Validating       ");
+    progress = 0;
     auto res = [&]() {
-        for (uint32_t u: tqdm_vali) {
-            auto const& unode = ada.GetVertex(u);
-            for (uint8_t i = 0; i < unode.degree; ++i) {
-                uint32_t v = unode.neighbours[i];
-                auto const& vnode = ada.GetVertex(v);
-                if (vnode.color == unode.color) {
-                    return false;
+        for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
+            uint32_t end = std::min(batch + batchSize, numVertices);
+            for (uint32_t u = batch; u < end; ++u) {
+                auto const& unode = ada.GetVertex(u);
+                for (uint8_t i = 0; i < unode.degree; ++i) {
+                    uint32_t v = unode.neighbours[i];
+                    auto const& vnode = ada.GetVertex(v);
+                    if (vnode.color == unode.color) {
+                        return false;
+                    }
                 }
             }
+            progress += (end - batch);
+            tqdm_vali.manually_set_progress(progress / numVertices);
         }
         return true;
     }();

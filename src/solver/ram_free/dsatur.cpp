@@ -14,6 +14,7 @@
 
 #include <tqdm.hpp>
 #include <debug.h>
+#include <vector>
 
 namespace solver::ramfree {
 namespace detail {
@@ -72,8 +73,8 @@ static_assert(sizeof(MexBitSet) == 1);
 template <typename T, typename C>
 using HeapT = boost::heap::fibonacci_heap<
     T,
-    boost::heap::compare<C>,
-    boost::heap::allocator<boost::fast_pool_allocator<T>>
+    boost::heap::compare<C>
+    // boost::heap::allocator<boost::fast_pool_allocator<T>>
 >;
 
 // template <typename T, typename C>
@@ -132,20 +133,40 @@ void DSatur(std::filesystem::path const& path)
     constexpr uint32_t batchSize = 100;
     double progress = 0;
 
-    auto tqdm_heap = MyTQDM(numVertices);
-    tqdm_heap.set_prefix("Loading heap     ");
-    progress = 0;
-    for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
-        uint32_t end = std::min(batch + batchSize, numVertices);
-        for (uint32_t v = batch; v < end; ++v) {
+    // auto tqdm_heap = MyTQDM(numVertices);
+    // tqdm_heap.set_prefix("Loading heap     ");
+    // progress = 0;
+    // for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
+    //     uint32_t end = std::min(batch + batchSize, numVertices);
+    //     for (uint32_t v = batch; v < end; ++v) {
+    //         auto &vnode = ada.GetVertex(v);
+    //         vnode.vertex = v;
+    //         vnode.handle = heap.push(&vnode);
+    //     }
+    //     progress += (end - batch);
+    //     tqdm_heap.manually_set_progress(progress / numVertices);
+    // }
+    // std::cout << std::endl;
+
+    {
+        std::vector<Node::Heap> threadHeap(omp_get_max_threads());
+
+        progress = 0;
+
+        #pragma omp parallel for schedule(dynamic, batchSize)
+        for (uint32_t v = 0; v < numVertices; ++v) {
             auto &vnode = ada.GetVertex(v);
             vnode.vertex = v;
-            vnode.handle = heap.push(&vnode);
+            vnode.handle = threadHeap[omp_get_thread_num()].push(&vnode);
         }
-        progress += (end - batch);
-        tqdm_heap.manually_set_progress(progress / numVertices);
+            // progress += (end - batch);
+            // tqdm_heap.manually_set_progress(progress / numVertices);
+
+        for (auto &h: threadHeap) {
+            heap.merge(h);
+        }
     }
-    std::cout << std::endl;
+    return;
 
     uint8_t maxColor = 0;
 

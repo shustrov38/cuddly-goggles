@@ -76,7 +76,7 @@ public:
         fstat(fd, &st);
         size_t fileSize = st.st_size;
 
-        void* mapped = mmap(nullptr, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
+        void* mapped = mmap(nullptr, fileSize, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
         if(mapped == MAP_FAILED) {
             throw std::runtime_error("mmap failed");
         }

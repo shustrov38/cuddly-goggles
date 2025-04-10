@@ -3,8 +3,6 @@
 #include "graph_adaptor.h"
 
 #include <boost/heap/fibonacci_heap.hpp>
-#include <boost/heap/d_ary_heap.hpp>
-#include <boost/pool/pool_alloc.hpp>
 
 #include <cstdint>
 #include <cstring>
@@ -71,20 +69,7 @@ static_assert(sizeof(MexBitSet) == 1);
 } // namespace detail
 
 template <typename T, typename C>
-using HeapT = boost::heap::fibonacci_heap<
-    T,
-    boost::heap::compare<C>
-    // boost::heap::allocator<boost::fast_pool_allocator<T>>
->;
-
-// template <typename T, typename C>
-// using HeapT = boost::heap::d_ary_heap<
-//     T,
-//     boost::heap::compare<C>,
-//     boost::heap::arity<8>,
-//     boost::heap::mutable_<true>,
-//     boost::heap::allocator<boost::fast_pool_allocator<T>>
-// >;
+using HeapT = boost::heap::fibonacci_heap<T, boost::heap::compare<C>>;
 
 struct Node {
     struct CompareInfo {
@@ -123,56 +108,47 @@ struct Node {
 };
 static_assert(sizeof(Node) == 48);
 
-void DSatur(std::filesystem::path const& path)
+static void HeapLoader(GraphAdaptor<Node> &ada, Node::Heap &heap)
 {
-    solver::ramfree::GraphAdaptor<Node> ada(path);
-
     uint32_t const numVertices = ada.GetNumVertices();
-    Node::Heap heap;
+    uint32_t constexpr batchSize = 1000;
 
-    constexpr uint32_t batchSize = 100;
-    double progress = 0;
+    std::vector<Node::Heap> threadHeap(omp_get_max_threads());
 
-    // auto tqdm_heap = MyTQDM(numVertices);
-    // tqdm_heap.set_prefix("Loading heap     ");
-    // progress = 0;
-    // for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
-    //     uint32_t end = std::min(batch + batchSize, numVertices);
-    //     for (uint32_t v = batch; v < end; ++v) {
-    //         auto &vnode = ada.GetVertex(v);
-    //         vnode.vertex = v;
-    //         vnode.handle = heap.push(&vnode);
-    //     }
-    //     progress += (end - batch);
-    //     tqdm_heap.manually_set_progress(progress / numVertices);
-    // }
-    // std::cout << std::endl;
+    auto tqdm_heap = MyTQDM(numVertices);
+    tqdm_heap.set_prefix("Loading heaps    ");
+    tqdm_heap.manually_set_progress(0);
 
-    {
-        std::vector<Node::Heap> threadHeap(omp_get_max_threads());
-
-        progress = 0;
-
-        #pragma omp parallel for schedule(dynamic, batchSize)
-        for (uint32_t v = 0; v < numVertices; ++v) {
-            auto &vnode = ada.GetVertex(v);
-            vnode.vertex = v;
-            vnode.handle = threadHeap[omp_get_thread_num()].push(&vnode);
-        }
-            // progress += (end - batch);
-            // tqdm_heap.manually_set_progress(progress / numVertices);
-
-        for (auto &h: threadHeap) {
-            heap.merge(h);
-        }
+    #pragma omp parallel for schedule(dynamic, batchSize)
+    for (uint32_t v = 0; v < numVertices; ++v) {
+        auto &vnode = ada.GetVertex(v);
+        vnode.vertex = v;
+        vnode.handle = threadHeap[omp_get_thread_num()].push(&vnode);
     }
-    return;
+    tqdm_heap.manually_set_progress(1);
+    std::cout << std::endl;
 
+    auto tqdm_merge = MyTQDM(numVertices);
+    tqdm_merge.set_prefix("Merging heaps    ");
+    tqdm_merge.manually_set_progress(0);
+
+    for (auto &h: threadHeap) {
+        heap.merge(h);
+    }
+    tqdm_merge.manually_set_progress(1);
+    std::cout << std::endl;
+}
+
+static int32_t DsaturImpl(GraphAdaptor<Node> &ada, Node::Heap &heap)
+{
+    uint32_t const numVertices = ada.GetNumVertices();
+    uint32_t constexpr batchSize = 1000;
+    
     uint8_t maxColor = 0;
+    double progress = 0;
 
     auto tqdm_algo = MyTQDM(numVertices);
     tqdm_algo.set_prefix("Colored vertices ");
-    progress = 0;
     for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
         uint32_t end = std::min(batch + batchSize, numVertices);
         for (uint32_t _ = batch; _ < end; ++_) {
@@ -197,32 +173,57 @@ void DSatur(std::filesystem::path const& path)
     }
     std::cout << std::endl;
 
+    return maxColor;
+}
+
+static bool Validate(GraphAdaptor<Node> &ada)
+{
+    uint32_t const numVertices = ada.GetNumVertices();
+    uint32_t constexpr batchSize = 1000;
+
+    double progress = 0;
+    bool flag = false;
+
     auto tqdm_vali = MyTQDM(numVertices);
     tqdm_vali.set_prefix("Validating       ");
-    progress = 0;
-    auto res = [&]() {
-        for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
-            uint32_t end = std::min(batch + batchSize, numVertices);
-            for (uint32_t u = batch; u < end; ++u) {
-                auto const& unode = ada.GetVertex(u);
-                for (uint8_t i = 0; i < unode.degree; ++i) {
-                    uint32_t v = unode.neighbours[i];
-                    auto const& vnode = ada.GetVertex(v);
-                    if (vnode.color == unode.color) {
-                        return false;
-                    }
+
+    #pragma omp parallel for
+    for (uint32_t batch = 0; batch < numVertices; batch += batchSize) {
+        uint32_t end = std::min(batch + batchSize, numVertices);
+        if (flag) {
+            continue;
+        }
+        for (uint32_t u = batch; u < end; ++u) {
+            auto const& unode = ada.GetVertex(u);
+            for (uint8_t i = 0; i < unode.degree; ++i) {
+                uint32_t v = unode.neighbours[i];
+                auto const& vnode = ada.GetVertex(v);
+                if (vnode.color == unode.color) {
+                    flag = true;
                 }
             }
-            progress += (end - batch);
-            tqdm_vali.manually_set_progress(progress / numVertices);
         }
-        return true;
-    }();
+        progress += (end - batch);
+        tqdm_vali.manually_set_progress(progress / numVertices);
+    }
+    tqdm_vali.manually_set_progress(1);
     std::cout << std::endl;
-    if (!res) {
-        std::cout << "Bad coloring!" << std::endl;
-    } else {
+    return !flag;
+}
+
+void DSatur(std::filesystem::path const& path)
+{
+    solver::ramfree::GraphAdaptor<Node> ada(path);
+
+    Node::Heap heap;
+    HeapLoader(ada, heap);
+
+    auto maxColor = DsaturImpl(ada, heap);
+    
+    if (Validate(ada)) {
         std::cout << "Coloring with K=" << (int)maxColor+1 << std::endl;
+    } else {
+        std::cout << "Bad coloring!" << std::endl;
     }    
 }
 } // namespace solver::ramfree

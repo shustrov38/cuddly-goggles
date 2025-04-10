@@ -44,7 +44,7 @@ private:
 
     constexpr uint32_t GetV(uint32_t x, uint32_t y) const
     {
-        return SecureMul(x, mWidth) + y;
+        return SecureMul(x, mHeight) + y;
     }
 
     constexpr uint32_t GetX(uint32_t v) const

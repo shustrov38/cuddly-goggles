@@ -37,8 +37,6 @@ void HugeGraphGenerator::Generate()
         Write(zero);
     }
 
-    std::cout << mStream.tellp() << std::endl;
-
     auto tqdm = tq::trange(mWidth);
 
     WriteVertexMetadataOffset(GetV(0, 0));

@@ -23,3 +23,9 @@ target_link_libraries(solver PRIVATE
     tqdm-cpp
     OpenMP::OpenMP_CXX
 )
+
+if(USE_JEMALLOC)
+    include(${CMAKE_CURRENT_LIST_DIR}/../../jemalloc.cmake)
+    target_link_libraries(solver PRIVATE jemalloc)
+    target_include_directories(solver PRIVATE ${JEMALLOC_INCLUDE_DIR})
+endif()

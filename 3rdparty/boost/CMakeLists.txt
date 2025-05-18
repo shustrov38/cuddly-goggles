@@ -13,8 +13,8 @@ fetchcontent_declare(
   GIT_TAG "boost-1.85.0"
   GIT_PROGRESS ON
   GIT_SHALLOW ON
-  OVERRIDE_FIND_PACKAGE TRUE # needed to find correct Boost
-  EXCLUDE_FROM_ALL # compile only what you need
+  OVERRIDE_FIND_PACKAGE ON # needed to find correct Boost
+  EXCLUDE_FROM_ALL ON # compile only what you need
 )
 
 fetchcontent_makeavailable(boost)

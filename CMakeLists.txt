@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(planar_graph_coloring VERSION 0.1.0 LANGUAGES C CXX)
 
+option(USE_JEMALLOC "Build with jemalloc memory allocator" ON)
+
 set(DEBUG ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
